@@ -7,6 +7,11 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
     throw new Error("Symbol is required.");
   }
 
+  const localSnapshot = await fetchLocalSnapshot(normalizedSymbol, fetchImpl);
+  if (localSnapshot) {
+    return localSnapshot;
+  }
+
   const url = buildStooqUrl(normalizedSymbol);
   const requests = [
     { url, source: "Stooq daily prices" },
@@ -41,6 +46,18 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
   }
 
   return buildMarketSnapshot(normalizedSymbol, candles, source);
+}
+
+async function fetchLocalSnapshot(symbol, fetchImpl) {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const response = await fetchImpl(`/api/market/${encodeURIComponent(symbol)}`);
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
 export function buildMarketSnapshot(symbol, candles, source = "manual") {

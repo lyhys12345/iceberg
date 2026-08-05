@@ -228,6 +228,19 @@ button {
   padding: 20px;
 }
 
+.advisor-actions,
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.button-group {
+  justify-content: flex-end;
+  margin-top: 0;
+}
+
 .decision-score {
   display: grid;
   width: 92px;
@@ -672,7 +685,8 @@ button:disabled {
 
   .topbar,
   .panel-heading,
-  .journal-item {
+  .journal-item,
+  .button-group {
     align-items: stretch;
     flex-direction: column;
   }

@@ -5,6 +5,8 @@ import { fetchMarketSnapshot, manualMarketSnapshot } from "./market-data.mjs";
 const storageKeys = {
   rules: "iceberg.rules.v1",
   journal: "iceberg.journal.v1",
+  advisorHistory: "iceberg.advisor-history.v1",
+  advisorProfile: "iceberg.advisor-profile.v1",
 };
 
 const state = {
@@ -64,6 +66,10 @@ const elements = {
   scenarioList: document.querySelector("#scenarioList"),
   protectionList: document.querySelector("#protectionList"),
   entryPlan: document.querySelector("#entryPlan"),
+  saveAdvisorPlan: document.querySelector("#saveAdvisorPlan"),
+  skipAdvisorTrade: document.querySelector("#skipAdvisorTrade"),
+  exportJson: document.querySelector("#exportJson"),
+  exportCsv: document.querySelector("#exportCsv"),
 };
 
 init();
@@ -74,7 +80,9 @@ function init() {
   loadRulesIntoForm();
   renderJournal();
   updateSummary();
-  seedAdvisorExample();
+  if (!loadAdvisorProfileIntoForm()) {
+    seedAdvisorDefaults();
+  }
   seedDemoTrade();
 }
 
@@ -109,6 +117,10 @@ function bindForms() {
     generateAdvisorPlan();
   });
 
+  elements.saveAdvisorPlan.addEventListener("click", () => saveAdvisorDecision("saved"));
+  elements.skipAdvisorTrade.addEventListener("click", () => saveAdvisorDecision("skipped"));
+  elements.exportJson.addEventListener("click", exportJson);
+  elements.exportCsv.addEventListener("click", exportCsv);
   elements.loadAdvisorExample.addEventListener("click", () => {
     seedAdvisorExample();
     resetAdvisorReport();
@@ -126,6 +138,7 @@ function bindForms() {
   elements.cancelCooldown.addEventListener("click", stopCooldown);
   elements.clearJournal.addEventListener("click", () => {
     localStorage.setItem(storageKeys.journal, JSON.stringify([]));
+    localStorage.setItem(storageKeys.advisorHistory, JSON.stringify([]));
     renderJournal();
     updateSummary();
   });
@@ -149,10 +162,16 @@ async function researchAdvisorTicker() {
     renderMarketSnapshot(snapshot);
     elements.marketStatus.textContent = `Loaded ${symbol} market snapshot as of ${snapshot.asOf}.`;
   } catch (error) {
-    const fallback = manualMarketSnapshot(symbol, document.querySelector("#advisorPrice").value || 100);
-    state.marketSnapshot = fallback;
-    renderMarketSnapshot(fallback);
-    elements.marketStatus.textContent = `Live market data was unavailable. Using manual price estimate for ${symbol}.`;
+    const price = document.querySelector("#advisorPrice").value;
+    if (price) {
+      const fallback = manualMarketSnapshot(symbol, price);
+      state.marketSnapshot = fallback;
+      renderMarketSnapshot(fallback);
+      elements.marketStatus.textContent = `Live market data was unavailable. Using the current price field for ${symbol}; confirm it before generating.`;
+    } else {
+      state.marketSnapshot = null;
+      elements.marketStatus.textContent = `Live market data was unavailable. Enter the current ${symbol} price manually.`;
+    }
   } finally {
     elements.researchTicker.disabled = false;
   }
@@ -160,6 +179,7 @@ async function researchAdvisorTicker() {
 
 function generateAdvisorPlan() {
   const advisorInput = readAdvisorForm();
+  saveAdvisorProfile(advisorInput);
   const market =
     state.marketSnapshot && state.marketSnapshot.symbol === advisorInput.symbol
       ? state.marketSnapshot
@@ -205,6 +225,8 @@ function renderAdvisorReport(report) {
   elements.advisorStopRisk.textContent = formatCurrency(Math.abs(scenarios.stop.pnl));
   elements.advisorStopPrice.textContent = `stop ${formatCurrency(scenarios.stop.price)}`;
   elements.advisorExposure.textContent = formatPercent(sizing.futurePositionPercent);
+  elements.saveAdvisorPlan.disabled = false;
+  elements.skipAdvisorTrade.disabled = false;
 
   renderMarketSnapshot(market);
 
@@ -352,46 +374,52 @@ function saveDecision(decision) {
   updateSummary();
 }
 
-function renderJournal() {
-  const journal = loadJournal();
+function saveAdvisorDecision(decision) {
+  if (!state.latestAdvisorReport) return;
 
-  if (journal.length === 0) {
-    elements.journalList.innerHTML = `<p class="empty-state">No saved decisions yet. Run a pre-trade check to start building discipline history.</p>`;
+  const history = loadAdvisorHistory();
+  history.unshift({
+    id: crypto.randomUUID(),
+    type: "advisor",
+    createdAt: new Date().toISOString(),
+    decision,
+    report: state.latestAdvisorReport,
+  });
+
+  localStorage.setItem(storageKeys.advisorHistory, JSON.stringify(history.slice(0, 100)));
+  renderJournal();
+  updateSummary();
+}
+
+function renderJournal() {
+  const journal = loadJournal().map((entry) => ({ ...entry, type: "check" }));
+  const advisorHistory = loadAdvisorHistory();
+  const entries = [...journal, ...advisorHistory].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (entries.length === 0) {
+    elements.journalList.innerHTML = `<p class="empty-state">No saved decisions yet. Generate an advisor plan or run a pre-trade check to start building history.</p>`;
     return;
   }
 
-  elements.journalList.innerHTML = journal
-    .map((entry) => {
-      const date = new Date(entry.createdAt).toLocaleString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      const { trade, score, action } = entry.report;
-
-      return `
-        <article class="journal-item">
-          <div>
-            <strong>${trade.symbol || "UNKNOWN"} - ${trade.assetType}</strong>
-            <span>${date} - ${entry.decision} - score ${score}</span>
-          </div>
-          <span class="journal-action" data-level="${action.kind}">${action.title}</span>
-        </article>
-      `;
-    })
+  elements.journalList.innerHTML = entries
+    .map((entry) => (entry.type === "advisor" ? advisorHistoryItem(entry) : checkHistoryItem(entry)))
     .join("");
 }
 
 function updateSummary() {
   const journal = loadJournal();
+  const advisorHistory = loadAdvisorHistory();
   const today = new Date().toDateString();
   const todaysEntries = journal.filter((entry) => new Date(entry.createdAt).toDateString() === today);
+  const todaysAdvisor = advisorHistory.filter((entry) => new Date(entry.createdAt).toDateString() === today);
   const blocks = todaysEntries.filter((entry) => entry.decision === "blocked");
-  const riskSaved = blocks.reduce((sum, entry) => sum + Number(entry.report.savedRisk || 0), 0);
+  const skips = todaysAdvisor.filter((entry) => entry.decision === "skipped" || entry.report.decision.kind === "avoid");
+  const riskSaved =
+    blocks.reduce((sum, entry) => sum + Number(entry.report.savedRisk || 0), 0) +
+    skips.reduce((sum, entry) => sum + Math.abs(Number(entry.report.scenarios?.stop?.pnl || entry.report.scenarios?.bear?.pnl || 0)), 0);
 
-  elements.todayChecks.textContent = `${todaysEntries.length} checks`;
-  elements.todayBlocks.textContent = `${blocks.length} trades`;
+  elements.todayChecks.textContent = `${todaysEntries.length + todaysAdvisor.length} checks`;
+  elements.todayBlocks.textContent = `${blocks.length + skips.length} trades`;
   elements.riskSaved.textContent = `$${riskSaved.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
@@ -438,6 +466,138 @@ function loadJournal() {
   }
 }
 
+function loadAdvisorHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(storageKeys.advisorHistory)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function advisorHistoryItem(entry) {
+  const date = formatHistoryDate(entry.createdAt);
+  const { report } = entry;
+  const symbol = report.trade.symbol || "UNKNOWN";
+  const size = formatCurrency(report.sizing.suggestedDollars);
+  const decision = entry.decision === "skipped" ? "skipped" : "saved";
+
+  return `
+    <article class="journal-item">
+      <div>
+        <strong>${symbol} - advisor plan</strong>
+        <span>${date} - ${decision} - risk ${report.riskScore} - size ${size}</span>
+      </div>
+      <span class="journal-action" data-level="${report.decision.kind}">${report.decision.title}</span>
+    </article>
+  `;
+}
+
+function checkHistoryItem(entry) {
+  const date = formatHistoryDate(entry.createdAt);
+  const { trade, score, action } = entry.report;
+
+  return `
+    <article class="journal-item">
+      <div>
+        <strong>${trade.symbol || "UNKNOWN"} - ${trade.assetType}</strong>
+        <span>${date} - ${entry.decision} - score ${score}</span>
+      </div>
+      <span class="journal-action" data-level="${action.kind}">${action.title}</span>
+    </article>
+  `;
+}
+
+function saveAdvisorProfile(input) {
+  const profile = {
+    accountValue: input.accountValue,
+    cashAvailable: input.cashAvailable,
+    currentShares: input.currentShares,
+    plannedBudget: input.plannedBudget,
+    maxRiskPercent: input.maxRiskPercent,
+    winProbability: input.winProbability,
+    upsidePercent: input.upsidePercent,
+    downsidePercent: input.downsidePercent,
+    stopLossPercent: input.stopLossPercent,
+    targetGainPercent: input.targetGainPercent,
+  };
+
+  localStorage.setItem(storageKeys.advisorProfile, JSON.stringify(profile));
+}
+
+function loadAdvisorProfileIntoForm() {
+  try {
+    const profile = JSON.parse(localStorage.getItem(storageKeys.advisorProfile));
+    if (!profile) return false;
+
+    document.querySelector("#advisorAccountValue").value = profile.accountValue || "";
+    document.querySelector("#advisorCash").value = profile.cashAvailable || "";
+    document.querySelector("#advisorCurrentShares").value = profile.currentShares || "0";
+    document.querySelector("#advisorBudget").value = profile.plannedBudget || "";
+    document.querySelector("#advisorMaxRisk").value = profile.maxRiskPercent || "1";
+    document.querySelector("#advisorWinProbability").value = profile.winProbability || "55";
+    document.querySelector("#advisorUpside").value = profile.upsidePercent || "12";
+    document.querySelector("#advisorDownside").value = profile.downsidePercent || "8";
+    document.querySelector("#advisorStopLoss").value = profile.stopLossPercent || "6";
+    document.querySelector("#advisorTarget").value = profile.targetGainPercent || "12";
+    state.marketSnapshot = null;
+    elements.marketStatus.textContent = "Your risk assumptions were restored. Enter a ticker and price to generate a new plan.";
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function exportJson() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    rules: loadRules(),
+    advisorProfile: JSON.parse(localStorage.getItem(storageKeys.advisorProfile) || "null"),
+    disciplineChecks: loadJournal(),
+    advisorPlans: loadAdvisorHistory(),
+  };
+
+  downloadFile("iceberg-export.json", JSON.stringify(payload, null, 2), "application/json");
+}
+
+function exportCsv() {
+  const rows = [["type", "created_at", "symbol", "decision", "risk_score", "suggested_dollars", "suggested_shares", "stop_price"]];
+
+  loadJournal().forEach((entry) => {
+    rows.push(["check", entry.createdAt, entry.report.trade.symbol, entry.decision, entry.report.score, "", "", ""]);
+  });
+
+  loadAdvisorHistory().forEach((entry) => {
+    rows.push([
+      "advisor",
+      entry.createdAt,
+      entry.report.trade.symbol,
+      entry.decision,
+      entry.report.riskScore,
+      entry.report.sizing.suggestedDollars,
+      entry.report.sizing.suggestedShares,
+      entry.report.scenarios.stop.price,
+    ]);
+  });
+
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+  downloadFile("iceberg-export.csv", csv, "text/csv");
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function downloadFile(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function seedDemoTrade() {
   document.querySelector("#symbol").value = "NVDA";
   document.querySelector("#positionSize").value = "1200";
@@ -471,6 +631,25 @@ function seedAdvisorExample() {
   elements.marketStatus.textContent = "Example loaded with manual market estimate. Click Research to try live daily prices.";
 }
 
+function seedAdvisorDefaults() {
+  document.querySelector("#advisorSymbol").value = "";
+  document.querySelector("#advisorSide").value = "buy";
+  document.querySelector("#advisorHorizon").value = "swing";
+  document.querySelector("#advisorPrice").value = "";
+  document.querySelector("#advisorAccountValue").value = "25000";
+  document.querySelector("#advisorCash").value = "8000";
+  document.querySelector("#advisorCurrentShares").value = "0";
+  document.querySelector("#advisorBudget").value = "3000";
+  document.querySelector("#advisorMaxRisk").value = "1";
+  document.querySelector("#advisorWinProbability").value = "55";
+  document.querySelector("#advisorUpside").value = "12";
+  document.querySelector("#advisorDownside").value = "8";
+  document.querySelector("#advisorStopLoss").value = "6";
+  document.querySelector("#advisorTarget").value = "12";
+  state.marketSnapshot = null;
+  elements.marketStatus.textContent = "Enter a ticker and research recent performance. If live data is unavailable, enter the current price manually.";
+}
+
 function resetAdvisorReport() {
   state.latestAdvisorReport = null;
   elements.advisorRiskScore.textContent = "--";
@@ -484,6 +663,8 @@ function resetAdvisorReport() {
   elements.advisorStopRisk.textContent = "--";
   elements.advisorStopPrice.textContent = "stop --";
   elements.advisorExposure.textContent = "--";
+  elements.saveAdvisorPlan.disabled = true;
+  elements.skipAdvisorTrade.disabled = true;
   elements.scenarioList.innerHTML = "";
   elements.protectionList.innerHTML = "";
   elements.entryPlan.innerHTML = "";
@@ -492,6 +673,8 @@ function resetAdvisorReport() {
 function resetDemo() {
   localStorage.removeItem(storageKeys.rules);
   localStorage.removeItem(storageKeys.journal);
+  localStorage.removeItem(storageKeys.advisorHistory);
+  localStorage.removeItem(storageKeys.advisorProfile);
   loadRulesIntoForm();
   seedDemoTrade();
   stopCooldown();
@@ -507,10 +690,19 @@ function resetDemo() {
   elements.ruleList.innerHTML = "";
   elements.savePassed.disabled = true;
   elements.saveBlocked.disabled = true;
-  seedAdvisorExample();
+  seedAdvisorDefaults();
   resetAdvisorReport();
   renderJournal();
   updateSummary();
+}
+
+function formatHistoryDate(createdAt) {
+  return new Date(createdAt).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatCurrency(value) {

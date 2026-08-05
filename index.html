@@ -92,7 +92,7 @@
               <div class="form-grid">
                 <label>
                   Current price
-                  <input id="advisorPrice" name="currentPrice" type="number" min="0.01" step="0.01" placeholder="185.00" />
+                  <input id="advisorPrice" name="currentPrice" type="number" min="0.01" step="0.01" placeholder="185.00" required />
                 </label>
                 <label>
                   Account value
@@ -152,6 +152,10 @@
                   <p class="eyebrow">Decision estimate</p>
                   <h3 id="advisorDecisionTitle">Waiting for ticker</h3>
                   <p id="advisorDecisionSummary">Research a stock and generate a plan to see size, scenarios, and protection settings.</p>
+                  <div class="advisor-actions">
+                    <button id="saveAdvisorPlan" class="secondary-button" type="button" disabled>Save plan</button>
+                    <button id="skipAdvisorTrade" class="danger-button" type="button" disabled>Skip trade</button>
+                  </div>
                 </div>
               </section>
 
@@ -366,9 +370,13 @@
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">Journal</p>
-                <h3>Decisions before execution</h3>
+                <h3>Pre-trade history</h3>
               </div>
-              <button id="clearJournal" class="ghost-button" type="button">Clear</button>
+              <div class="button-group">
+                <button id="exportJson" class="ghost-button" type="button">Export JSON</button>
+                <button id="exportCsv" class="ghost-button" type="button">Export CSV</button>
+                <button id="clearJournal" class="ghost-button" type="button">Clear</button>
+              </div>
             </div>
             <div id="journalList" class="journal-list"></div>
           </section>

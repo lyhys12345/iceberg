@@ -45,6 +45,8 @@ See [docs/development-roadmap.md](docs/development-roadmap.md) for the step-by-s
 
 See [docs/ai-trade-advisor-spec.md](docs/ai-trade-advisor-spec.md) for the AI pre-trade advisor specification.
 
+See [docs/mvp-qualification.md](docs/mvp-qualification.md) for the current MVP qualification checklist.
+
 ## Prototype
 
 The first MVP is a static web app that runs entirely in the browser:
@@ -57,14 +59,17 @@ The first MVP is a static web app that runs entirely in the browser:
 - Personal rule settings
 - Local decision journal
 
-Open `index.html` in a browser to try the prototype.
+Open `index.html` in a browser to try the prototype, or run the local server to enable the market-data proxy:
+
+```sh
+node server.mjs
+```
 
 ## Development
 
 Run the pure risk-engine tests with:
 
 ```sh
-node tests/risk-engine.test.mjs
-node tests/advisor-engine.test.mjs
-node tests/market-data.test.mjs
+npm test
+npm run check
 ```
