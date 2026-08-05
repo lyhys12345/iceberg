@@ -41,6 +41,8 @@ Iceberg measures behavioral risk, not investment merit.
 
 See [docs/product-plan.md](docs/product-plan.md) for the full product plan.
 
+See [docs/development-roadmap.md](docs/development-roadmap.md) for the step-by-step software development plan.
+
 ## Prototype
 
 The first MVP is a static web app that runs entirely in the browser:
