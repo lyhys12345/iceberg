@@ -193,6 +193,15 @@ button {
   align-items: start;
 }
 
+.onboarding-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+}
+
 .advisor-report {
   display: grid;
   gap: 18px;
@@ -714,7 +723,8 @@ button:disabled {
   .topbar,
   .panel-heading,
   .journal-item,
-  .button-group {
+  .button-group,
+  .onboarding-panel {
     align-items: stretch;
     flex-direction: column;
   }

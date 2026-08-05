@@ -30,14 +30,15 @@ The MVP does not need brokerage execution, paid accounts, or a live LLM to be us
 - Adjustable Kelly fraction with conservative 25 percent default.
 - Local AI risk brief preview for behavioral and sizing interpretation.
 - Clean first-run advisor state with explicit "Load example" behavior.
+- Lightweight first-run risk profile panel.
 - Browser smoke test coverage by manual Playwright check.
 - Unit tests for risk engine, advisor engine, and market data parsing.
 
 ## Product Gaps Before First User Testing
 
-### 1. Guided Onboarding
+### 1. Full Guided Onboarding
 
-The app now avoids a misleading prefilled ticker, but the user still needs a clearer setup wizard.
+The app now avoids a misleading prefilled ticker and shows a lightweight setup panel. A fuller setup wizard can come before public beta.
 
 Acceptance criteria:
 

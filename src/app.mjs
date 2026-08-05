@@ -8,6 +8,7 @@ const storageKeys = {
   journal: "iceberg.journal.v1",
   advisorHistory: "iceberg.advisor-history.v1",
   advisorProfile: "iceberg.advisor-profile.v1",
+  onboardingSeen: "iceberg.onboarding-seen.v1",
 };
 
 const state = {
@@ -72,6 +73,8 @@ const elements = {
   skipAdvisorTrade: document.querySelector("#skipAdvisorTrade"),
   exportJson: document.querySelector("#exportJson"),
   exportCsv: document.querySelector("#exportCsv"),
+  onboardingPanel: document.querySelector("#onboardingPanel"),
+  dismissOnboarding: document.querySelector("#dismissOnboarding"),
 };
 
 init();
@@ -82,6 +85,7 @@ function init() {
   loadRulesIntoForm();
   renderJournal();
   updateSummary();
+  renderOnboarding();
   if (!loadAdvisorProfileIntoForm()) {
     seedAdvisorDefaults();
   }
@@ -123,6 +127,10 @@ function bindForms() {
   elements.skipAdvisorTrade.addEventListener("click", () => saveAdvisorDecision("skipped"));
   elements.exportJson.addEventListener("click", exportJson);
   elements.exportCsv.addEventListener("click", exportCsv);
+  elements.dismissOnboarding.addEventListener("click", () => {
+    localStorage.setItem(storageKeys.onboardingSeen, "true");
+    renderOnboarding();
+  });
   elements.loadAdvisorExample.addEventListener("click", () => {
     seedAdvisorExample();
     resetAdvisorReport();
@@ -182,6 +190,8 @@ async function researchAdvisorTicker() {
 function generateAdvisorPlan() {
   const advisorInput = readAdvisorForm();
   saveAdvisorProfile(advisorInput);
+  localStorage.setItem(storageKeys.onboardingSeen, "true");
+  renderOnboarding();
   const market =
     state.marketSnapshot && state.marketSnapshot.symbol === advisorInput.symbol
       ? state.marketSnapshot
@@ -444,6 +454,11 @@ function updateSummary() {
   elements.riskSaved.textContent = `$${riskSaved.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+function renderOnboarding() {
+  const seen = localStorage.getItem(storageKeys.onboardingSeen) === "true";
+  elements.onboardingPanel.classList.toggle("hidden", seen);
+}
+
 function loadRules() {
   try {
     return { ...defaultRules, ...JSON.parse(localStorage.getItem(storageKeys.rules)) };
@@ -703,6 +718,7 @@ function resetDemo() {
   localStorage.removeItem(storageKeys.journal);
   localStorage.removeItem(storageKeys.advisorHistory);
   localStorage.removeItem(storageKeys.advisorProfile);
+  localStorage.removeItem(storageKeys.onboardingSeen);
   loadRulesIntoForm();
   seedDemoTrade();
   stopCooldown();
@@ -722,6 +738,7 @@ function resetDemo() {
   resetAdvisorReport();
   renderJournal();
   updateSummary();
+  renderOnboarding();
 }
 
 function formatHistoryDate(createdAt) {
