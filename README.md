@@ -49,8 +49,9 @@ See [docs/mvp-qualification.md](docs/mvp-qualification.md) for the current MVP q
 
 ## Prototype
 
-The first MVP is a static web app that runs entirely in the browser:
+The first MVP is a chat-first web app that runs in the browser:
 
+- Conversational beginner mode that extracts the trade from plain language
 - AI-style trade advisor for ticker research, Kelly sizing, scenarios, and protection planning
 - Local AI risk brief preview for behavior and sizing risks
 - Pre-trade trade intent form

@@ -29,6 +29,8 @@ The advisor flow should collect:
 - Take-profit distance
 - Kelly fraction
 
+The default UX should not expose this list as a long form. Beginners should start from a conversation, and the app should infer what it can, ask for missing information, then show the advanced assumptions only as an optional inspection panel.
+
 Later versions should add:
 
 - Average cost

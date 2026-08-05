@@ -1,0 +1,110 @@
+export function parseBeginnerTradeMessage(message, defaults = {}) {
+  const text = String(message || "").trim();
+  const normalized = text.replaceAll(",", "");
+  const lower = normalized.toLowerCase();
+  const symbol = extractSymbol(normalized);
+  const accountValue = findAmountAfter(normalized, ["account", "portfolio", "账户", "本金", "资金"]) || defaults.accountValue || "";
+  const plannedBudget = findAmountAfter(normalized, ["plan to buy", "planning to buy", "want to buy", "spend", "budget", "准备买", "准备", "投入", "计划"]) || defaults.plannedBudget || "";
+  const currentPrice = findAmountAfter(normalized, ["current price", "price", "at", "股价", "价格"]) || "";
+  const horizon = lower.includes("day") || lower.includes("日内") ? "day" : lower.includes("long") || lower.includes("长期") ? "long" : defaults.horizon || "swing";
+  const side = lower.includes("sell") || lower.includes("卖") ? "sell" : "buy";
+
+  return {
+    symbol,
+    side,
+    horizon,
+    currentPrice,
+    accountValue,
+    cashAvailable: defaults.cashAvailable || accountValue || "",
+    currentShares: defaults.currentShares || "0",
+    plannedBudget,
+    maxRiskPercent: defaults.maxRiskPercent || "1",
+    winProbability: defaults.winProbability || "55",
+    upsidePercent: defaults.upsidePercent || "12",
+    downsidePercent: defaults.downsidePercent || "8",
+    stopLossPercent: defaults.stopLossPercent || "6",
+    targetGainPercent: defaults.targetGainPercent || "12",
+    kellyFractionPercent: defaults.kellyFractionPercent || "25",
+    thesis: text,
+  };
+}
+
+export function beginnerMissingFields(trade) {
+  const missing = [];
+  if (!trade.symbol) missing.push("ticker");
+  if (!positive(trade.accountValue)) missing.push("account value");
+  if (!positive(trade.plannedBudget)) missing.push("planned amount");
+  if (!positive(trade.currentPrice)) missing.push("current price");
+  return missing;
+}
+
+export function beginnerAdvice(report) {
+  const size = money(report.sizing.suggestedDollars);
+  const stop = money(report.scenarios.stop.price);
+  const stopLoss = money(Math.abs(report.scenarios.stop.pnl));
+  const exposure = `${(report.sizing.futurePositionPercent * 100).toFixed(1)}%`;
+
+  if (report.decision.kind === "avoid") {
+    return `I would not rush this trade. Under your inputs, Iceberg cannot find a protected size. The safer move is to wait, rewrite the plan, or reduce the amount until the stop-loss risk fits your account.`;
+  }
+
+  if (report.decision.kind === "reduce") {
+    return `This may be tradable only at a small size. A beginner-friendly cap is about ${size}, with a protective stop near ${stop}. If that stop hits, the estimated loss is about ${stopLoss}.`;
+  }
+
+  return `This looks acceptable only if you follow the protection plan. Keep the trade around ${size}, set the stop near ${stop}, and keep total exposure around ${exposure}.`;
+}
+
+export function beginnerQuestion(missingFields) {
+  if (missingFields.length === 0) return "";
+
+  const labels = {
+    ticker: "which stock ticker",
+    "account value": "your account size",
+    "planned amount": "how much you plan to buy",
+    "current price": "the current stock price",
+  };
+
+  return `I need ${missingFields.map((field) => labels[field]).join(", ")} before I can estimate the trade.`;
+}
+
+function extractSymbol(text) {
+  const explicit = text.match(/\$([A-Za-z]{1,5})\b/);
+  if (explicit) return explicit[1].toUpperCase();
+
+  const words = text.match(/\b[A-Z]{1,5}\b/g) || [];
+  const ignored = new Set(["I", "AI", "USD", "ETF"]);
+  const candidate = words.find((word) => !ignored.has(word));
+  return candidate || "";
+}
+
+function findAmountAfter(text, phrases) {
+  for (const phrase of phrases) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`${escaped}[^\\d$]{0,30}(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|万))?`, "i");
+    const match = text.match(pattern);
+    if (match) return String(scaleAmount(match[1], match[2]));
+  }
+
+  return "";
+}
+
+function scaleAmount(rawValue, rawSuffix) {
+  const value = Number(rawValue);
+  const suffix = String(rawSuffix || "").toLowerCase();
+  const multiplier = suffix === "k" ? 1000 : suffix === "m" ? 1000000 : suffix === "万" ? 10000 : 1;
+  return value * multiplier;
+}
+
+function positive(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0;
+}
+
+function money(value) {
+  return Number(value).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
+}

@@ -17,6 +17,8 @@ The MVP does not need brokerage execution, paid accounts, or a live LLM to be us
 ## What Is Now Implemented
 
 - Advisor flow for ticker, portfolio, risk assumptions, and trade horizon.
+- Beginner-friendly conversational flow that can ask for missing information.
+- Simplified default navigation: Ask, History, Settings, Classic.
 - Kelly and fractional Kelly sizing.
 - Suggested shares and dollar size.
 - Bull, base, bear, and stop-loss scenarios.

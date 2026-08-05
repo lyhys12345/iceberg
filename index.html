@@ -19,10 +19,10 @@
         </div>
 
         <nav class="nav-tabs" aria-label="Primary">
-          <button class="nav-tab active" data-tab="advisor" type="button">Advisor</button>
-          <button class="nav-tab" data-tab="check" type="button">Check</button>
-          <button class="nav-tab" data-tab="rules" type="button">Rules</button>
-          <button class="nav-tab" data-tab="journal" type="button">Journal</button>
+          <button class="nav-tab active" data-tab="advisor" type="button">Ask</button>
+          <button class="nav-tab" data-tab="journal" type="button">History</button>
+          <button class="nav-tab" data-tab="rules" type="button">Settings</button>
+          <button class="nav-tab" data-tab="check" type="button">Classic</button>
         </nav>
 
         <section class="status-panel" aria-label="Current discipline status">
@@ -45,30 +45,57 @@
         <section class="topbar">
           <div>
             <p class="eyebrow">AI pre-trade risk layer</p>
-            <h2>Estimate the trade before you place it.</h2>
+            <h2>Ask before you trade.</h2>
           </div>
-          <button id="resetDemo" class="ghost-button" type="button">Reset demo</button>
+          <button id="resetDemo" class="ghost-button" type="button">Reset</button>
         </section>
 
         <section id="advisorTab" class="tab-panel active">
           <section id="onboardingPanel" class="panel onboarding-panel">
             <div>
               <p class="eyebrow">Risk Profile</p>
-              <h3>Set conservative defaults before the first plan.</h3>
+              <h3>Tell Iceberg what you want to trade. It will ask for anything missing.</h3>
             </div>
             <button id="dismissOnboarding" class="secondary-button" type="button">Done</button>
+          </section>
+
+          <section class="panel chat-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Ask Iceberg</p>
+                <h3>Describe the trade in plain language</h3>
+              </div>
+              <span class="pill">agent mode</span>
+            </div>
+            <div id="agentConversation" class="agent-conversation">
+              <article class="agent-message assistant">
+                <strong>Iceberg</strong>
+                <p>Tell me the stock, your account size, and how much you want to buy. I will estimate size, downside, and protection in plain English.</p>
+              </article>
+            </div>
+            <form id="agentForm" class="agent-form">
+              <textarea id="agentPrompt" rows="3" placeholder="Example: I want to buy NVDA. My account is $25k and I plan to buy $1,000. Current price is $120."></textarea>
+              <button class="primary-button" type="submit">Ask Iceberg</button>
+            </form>
+            <div class="quick-prompts">
+              <button class="ghost-button" type="button" data-prompt="I want to buy NVDA. My account is $25000 and I plan to buy $1000. Current price is $120.">NVDA example</button>
+              <button class="ghost-button" type="button" data-prompt="我想买 TSLA，账户 2 万，准备买 3000 美元，现在股价 250。">中文 example</button>
+            </div>
           </section>
 
           <div class="advisor-layout">
             <form id="advisorForm" class="panel advisor-form">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">Trade Advisor</p>
-                  <h3>Risk, size, and protection</h3>
+                  <p class="eyebrow">Advanced</p>
+                  <h3>Fine-tune the model inputs</h3>
                 </div>
                 <span class="pill">Estimate only</span>
               </div>
 
+              <details class="advanced-details">
+                <summary>Show advanced controls</summary>
+                <div class="advanced-body">
               <div class="ticker-strip">
                 <label>
                   Symbol
@@ -160,6 +187,8 @@
                 <button class="primary-button" type="submit">Generate plan</button>
                 <button id="loadAdvisorExample" class="ghost-button" type="button">Load example</button>
               </div>
+                </div>
+              </details>
             </form>
 
             <section class="advisor-report" aria-live="polite">

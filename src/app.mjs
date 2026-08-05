@@ -1,6 +1,7 @@
 import { analyzeTrade, defaultRules } from "./risk-engine.mjs";
 import { analyzeAdvisorTrade } from "./advisor-engine.mjs";
 import { createAiRiskBrief } from "./ai-risk-layer.mjs";
+import { beginnerAdvice, beginnerMissingFields, beginnerQuestion, parseBeginnerTradeMessage } from "./conversation-agent.mjs";
 import { fetchMarketSnapshot, manualMarketSnapshot } from "./market-data.mjs";
 
 const storageKeys = {
@@ -75,6 +76,10 @@ const elements = {
   exportCsv: document.querySelector("#exportCsv"),
   onboardingPanel: document.querySelector("#onboardingPanel"),
   dismissOnboarding: document.querySelector("#dismissOnboarding"),
+  agentForm: document.querySelector("#agentForm"),
+  agentPrompt: document.querySelector("#agentPrompt"),
+  agentConversation: document.querySelector("#agentConversation"),
+  quickPrompts: document.querySelectorAll("[data-prompt]"),
 };
 
 init();
@@ -127,6 +132,16 @@ function bindForms() {
   elements.skipAdvisorTrade.addEventListener("click", () => saveAdvisorDecision("skipped"));
   elements.exportJson.addEventListener("click", exportJson);
   elements.exportCsv.addEventListener("click", exportCsv);
+  elements.agentForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await askBeginnerAgent(elements.agentPrompt.value);
+  });
+  elements.quickPrompts.forEach((button) => {
+    button.addEventListener("click", () => {
+      elements.agentPrompt.value = button.dataset.prompt;
+      elements.agentPrompt.focus();
+    });
+  });
   elements.dismissOnboarding.addEventListener("click", () => {
     localStorage.setItem(storageKeys.onboardingSeen, "true");
     renderOnboarding();
@@ -187,6 +202,62 @@ async function researchAdvisorTicker() {
   }
 }
 
+async function askBeginnerAgent(message) {
+  const text = String(message || "").trim();
+  if (!text) return;
+
+  appendAgentMessage("user", text);
+  elements.agentPrompt.value = "";
+  appendAgentMessage("assistant", "Let me check the trade, size, and downside first...");
+
+  const parsed = parseBeginnerTradeMessage(text, readAdvisorDefaults());
+
+  if (parsed.symbol && !parsed.currentPrice) {
+    try {
+      const snapshot = await fetchMarketSnapshot(parsed.symbol);
+      parsed.currentPrice = String(snapshot.latestClose);
+      state.marketSnapshot = snapshot;
+      renderMarketSnapshot(snapshot);
+    } catch {
+      state.marketSnapshot = null;
+    }
+  }
+
+  const missing = beginnerMissingFields(parsed);
+  fillAdvisorForm(parsed);
+
+  if (missing.length > 0) {
+    replaceLastAssistantMessage(beginnerQuestion(missing));
+    return;
+  }
+
+  const report = generateAdvisorPlan();
+  replaceLastAssistantMessage(`${beginnerAdvice(report)} I filled the advanced model below so you can inspect the assumptions.`);
+}
+
+function appendAgentMessage(role, text) {
+  elements.agentConversation.insertAdjacentHTML(
+    "beforeend",
+    `
+      <article class="agent-message ${role}">
+        <strong>${role === "user" ? "You" : "Iceberg"}</strong>
+        <p>${escapeHtml(text)}</p>
+      </article>
+    `,
+  );
+  elements.agentConversation.scrollTop = elements.agentConversation.scrollHeight;
+}
+
+function replaceLastAssistantMessage(text) {
+  const messages = [...elements.agentConversation.querySelectorAll(".agent-message.assistant p")];
+  const last = messages.at(-1);
+  if (last) {
+    last.textContent = text;
+  } else {
+    appendAgentMessage("assistant", text);
+  }
+}
+
 function generateAdvisorPlan() {
   const advisorInput = readAdvisorForm();
   saveAdvisorProfile(advisorInput);
@@ -201,6 +272,7 @@ function generateAdvisorPlan() {
   state.latestAdvisorReport = report;
   state.marketSnapshot = market;
   renderAdvisorReport(report);
+  return report;
 }
 
 function readAdvisorForm() {
@@ -294,7 +366,7 @@ function renderAdvisorReport(report) {
 }
 
 function renderMarketSnapshot(snapshot) {
-  elements.advisorMarketTitle.textContent = `${snapshot.symbol} · ${formatCurrency(snapshot.latestClose)} · ${snapshot.asOf}`;
+  elements.advisorMarketTitle.textContent = `${snapshot.symbol} - ${formatCurrency(snapshot.latestClose)} - ${snapshot.asOf}`;
   elements.advisorMarketSource.textContent = snapshot.isStale ? `${snapshot.source} - stale` : snapshot.source;
   elements.advisorMarketSource.dataset.stale = String(Boolean(snapshot.isStale));
   elements.market5d.textContent = formatPercent(snapshot.return5d);
@@ -314,6 +386,43 @@ function scenarioItem(label, price, pnl) {
       <small>${pnl >= 0 ? "+" : ""}${formatCurrency(pnl)}</small>
     </article>
   `;
+}
+
+function readAdvisorDefaults() {
+  return {
+    side: document.querySelector("#advisorSide").value || "buy",
+    horizon: document.querySelector("#advisorHorizon").value || "swing",
+    accountValue: document.querySelector("#advisorAccountValue").value,
+    cashAvailable: document.querySelector("#advisorCash").value,
+    currentShares: document.querySelector("#advisorCurrentShares").value,
+    plannedBudget: document.querySelector("#advisorBudget").value,
+    maxRiskPercent: document.querySelector("#advisorMaxRisk").value || "1",
+    winProbability: document.querySelector("#advisorWinProbability").value || "55",
+    upsidePercent: document.querySelector("#advisorUpside").value || "12",
+    downsidePercent: document.querySelector("#advisorDownside").value || "8",
+    stopLossPercent: document.querySelector("#advisorStopLoss").value || "6",
+    targetGainPercent: document.querySelector("#advisorTarget").value || "12",
+    kellyFractionPercent: document.querySelector("#advisorKellyFraction").value || "25",
+  };
+}
+
+function fillAdvisorForm(trade) {
+  document.querySelector("#advisorSymbol").value = trade.symbol || "";
+  document.querySelector("#advisorSide").value = trade.side || "buy";
+  document.querySelector("#advisorHorizon").value = trade.horizon || "swing";
+  document.querySelector("#advisorPrice").value = trade.currentPrice || "";
+  document.querySelector("#advisorAccountValue").value = trade.accountValue || "";
+  document.querySelector("#advisorCash").value = trade.cashAvailable || trade.accountValue || "";
+  document.querySelector("#advisorCurrentShares").value = trade.currentShares || "0";
+  document.querySelector("#advisorBudget").value = trade.plannedBudget || "";
+  document.querySelector("#advisorMaxRisk").value = trade.maxRiskPercent || "1";
+  document.querySelector("#advisorWinProbability").value = trade.winProbability || "55";
+  document.querySelector("#advisorUpside").value = trade.upsidePercent || "12";
+  document.querySelector("#advisorDownside").value = trade.downsidePercent || "8";
+  document.querySelector("#advisorStopLoss").value = trade.stopLossPercent || "6";
+  document.querySelector("#advisorTarget").value = trade.targetGainPercent || "12";
+  document.querySelector("#advisorKellyFraction").value = trade.kellyFractionPercent || "25";
+  document.querySelector("#advisorThesis").value = trade.thesis || "";
 }
 
 function readTradeForm() {
@@ -634,6 +743,15 @@ function downloadFile(filename, content, type) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function seedDemoTrade() {
