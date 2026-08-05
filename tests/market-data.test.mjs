@@ -43,5 +43,6 @@ assert.equal(snapshot.latestClose, 131);
 assert.ok(snapshot.return5d > 0);
 assert.ok(snapshot.annualizedVolatility >= 0);
 assert.equal(snapshot.range20d.high, 132);
+assert.equal(snapshot.isStale, true);
 
 console.log("market-data tests passed");

@@ -216,7 +216,7 @@ button {
 
 .assumption-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -377,6 +377,12 @@ button {
   color: var(--muted);
   font-size: 0.78rem;
   white-space: nowrap;
+}
+
+.pill[data-stale="true"] {
+  border-color: #efc7a2;
+  background: #fff6ed;
+  color: var(--amber);
 }
 
 .form-grid {

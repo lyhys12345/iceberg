@@ -208,6 +208,7 @@ function readAdvisorForm() {
     downsidePercent: formData.get("downsidePercent"),
     stopLossPercent: formData.get("stopLossPercent"),
     targetGainPercent: formData.get("targetGainPercent"),
+    kellyFractionPercent: formData.get("kellyFractionPercent"),
   };
 }
 
@@ -221,7 +222,7 @@ function renderAdvisorReport(report) {
   elements.advisorSuggestedSize.textContent = formatCurrency(sizing.suggestedDollars);
   elements.advisorSuggestedShares.textContent = `${sizing.suggestedShares} shares`;
   elements.advisorKelly.textContent = formatPercent(kelly.fractionalKelly);
-  elements.advisorKellyEdge.textContent = `full Kelly ${formatPercent(kelly.fullKelly)} · edge ${formatPercent(kelly.edge)}`;
+  elements.advisorKellyEdge.textContent = `full Kelly ${formatPercent(kelly.fullKelly)} - ${formatPercent(kelly.fractionUsed)} used - edge ${formatPercent(kelly.edge)}`;
   elements.advisorStopRisk.textContent = formatCurrency(Math.abs(scenarios.stop.pnl));
   elements.advisorStopPrice.textContent = `stop ${formatCurrency(scenarios.stop.price)}`;
   elements.advisorExposure.textContent = formatPercent(sizing.futurePositionPercent);
@@ -265,7 +266,8 @@ function renderAdvisorReport(report) {
 
 function renderMarketSnapshot(snapshot) {
   elements.advisorMarketTitle.textContent = `${snapshot.symbol} · ${formatCurrency(snapshot.latestClose)} · ${snapshot.asOf}`;
-  elements.advisorMarketSource.textContent = snapshot.source;
+  elements.advisorMarketSource.textContent = snapshot.isStale ? `${snapshot.source} - stale` : snapshot.source;
+  elements.advisorMarketSource.dataset.stale = String(Boolean(snapshot.isStale));
   elements.market5d.textContent = formatPercent(snapshot.return5d);
   elements.market20d.textContent = formatPercent(snapshot.return20d);
   elements.market60d.textContent = formatPercent(snapshot.return60d);
@@ -519,6 +521,7 @@ function saveAdvisorProfile(input) {
     downsidePercent: input.downsidePercent,
     stopLossPercent: input.stopLossPercent,
     targetGainPercent: input.targetGainPercent,
+    kellyFractionPercent: input.kellyFractionPercent,
   };
 
   localStorage.setItem(storageKeys.advisorProfile, JSON.stringify(profile));
@@ -539,6 +542,7 @@ function loadAdvisorProfileIntoForm() {
     document.querySelector("#advisorDownside").value = profile.downsidePercent || "8";
     document.querySelector("#advisorStopLoss").value = profile.stopLossPercent || "6";
     document.querySelector("#advisorTarget").value = profile.targetGainPercent || "12";
+    document.querySelector("#advisorKellyFraction").value = profile.kellyFractionPercent || "25";
     state.marketSnapshot = null;
     elements.marketStatus.textContent = "Your risk assumptions were restored. Enter a ticker and price to generate a new plan.";
     return true;
@@ -626,6 +630,7 @@ function seedAdvisorExample() {
   document.querySelector("#advisorDownside").value = "8";
   document.querySelector("#advisorStopLoss").value = "6";
   document.querySelector("#advisorTarget").value = "12";
+  document.querySelector("#advisorKellyFraction").value = "25";
   state.marketSnapshot = manualMarketSnapshot("AAPL", 210, 0.32);
   renderMarketSnapshot(state.marketSnapshot);
   elements.marketStatus.textContent = "Example loaded with manual market estimate. Click Research to try live daily prices.";
@@ -646,6 +651,7 @@ function seedAdvisorDefaults() {
   document.querySelector("#advisorDownside").value = "8";
   document.querySelector("#advisorStopLoss").value = "6";
   document.querySelector("#advisorTarget").value = "12";
+  document.querySelector("#advisorKellyFraction").value = "25";
   state.marketSnapshot = null;
   elements.marketStatus.textContent = "Enter a ticker and research recent performance. If live data is unavailable, enter the current price manually.";
 }

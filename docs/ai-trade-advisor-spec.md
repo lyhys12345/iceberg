@@ -27,6 +27,7 @@ The advisor flow should collect:
 - Estimated downside
 - Stop-loss distance
 - Take-profit distance
+- Kelly fraction
 
 Later versions should add:
 
@@ -77,6 +78,8 @@ The final suggested size should be the smallest of:
 - Available cash
 - Risk budget based on stop-loss distance
 - Fractional Kelly dollar cap
+
+The default Kelly fraction should be 25 percent of full Kelly. Users may adjust the fraction, but the UI should keep the default conservative.
 
 ## Protection Output
 

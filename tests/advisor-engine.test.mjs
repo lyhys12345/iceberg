@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { analyzeAdvisorTrade, calculateKelly } from "../src/advisor-engine.mjs";
 
-const kelly = calculateKelly(55, 12, 8);
+const kelly = calculateKelly(55, 12, 8, 25);
 assert.ok(kelly.fullKelly > 0);
 assert.equal(Number(kelly.fractionalKelly.toFixed(4)), Number((kelly.fullKelly * 0.25).toFixed(4)));
 
@@ -33,6 +33,7 @@ const report = analyzeAdvisorTrade(
     downsidePercent: 8,
     stopLossPercent: 6,
     targetGainPercent: 12,
+    kellyFractionPercent: 25,
   },
   market,
 );
@@ -51,6 +52,7 @@ const badReport = analyzeAdvisorTrade(
     winProbability: 35,
     upsidePercent: 8,
     downsidePercent: 20,
+    kellyFractionPercent: 25,
   },
   { ...market, symbol: "XYZ", latestClose: 100, annualizedVolatility: 0.9, return20d: 0.3 },
 );

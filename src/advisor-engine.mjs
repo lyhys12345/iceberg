@@ -1,6 +1,6 @@
 export function analyzeAdvisorTrade(input, market) {
   const trade = normalizeAdvisorInput(input, market);
-  const kelly = calculateKelly(trade.winProbability, trade.upsidePercent, trade.downsidePercent);
+  const kelly = calculateKelly(trade.winProbability, trade.upsidePercent, trade.downsidePercent, trade.kellyFractionPercent);
   const riskCapDollars = trade.accountValue * (trade.maxRiskPercent / 100);
   const stopLossPrice = trade.currentPrice * (1 - trade.stopLossPercent / 100);
   const targetPrice = trade.currentPrice * (1 + trade.targetGainPercent / 100);
@@ -67,17 +67,19 @@ export function analyzeAdvisorTrade(input, market) {
   };
 }
 
-export function calculateKelly(winProbability, upsidePercent, downsidePercent) {
+export function calculateKelly(winProbability, upsidePercent, downsidePercent, kellyFractionPercent = 25) {
   const p = clamp(toNumber(winProbability) / 100, 0, 1);
   const upside = Math.max(toNumber(upsidePercent) / 100, 0);
   const downside = Math.max(toNumber(downsidePercent) / 100, 0.001);
   const b = upside / downside;
+  const fraction = clamp(toNumber(kellyFractionPercent) / 100, 0.05, 1);
   const fullKelly = b > 0 ? (p * b - (1 - p)) / b : 0;
   const safeFullKelly = clamp(fullKelly, 0, 0.5);
 
   return {
     fullKelly: safeFullKelly,
-    fractionalKelly: safeFullKelly * 0.25,
+    fractionalKelly: safeFullKelly * fraction,
+    fractionUsed: fraction,
     edge: p * upside - (1 - p) * downside,
     payoffRatio: b,
   };
@@ -101,6 +103,7 @@ function normalizeAdvisorInput(input, market) {
     downsidePercent: clamp(positive(input.downsidePercent) || 8, 0.1, 90),
     stopLossPercent: clamp(positive(input.stopLossPercent) || positive(input.downsidePercent) || 8, 0.1, 90),
     targetGainPercent: clamp(positive(input.targetGainPercent) || positive(input.upsidePercent) || 12, 0.1, 200),
+    kellyFractionPercent: clamp(positive(input.kellyFractionPercent) || 25, 5, 100),
   };
 }
 
@@ -113,6 +116,7 @@ function scoreRisk(trade, market, kelly, futurePositionPercent) {
   if (futurePositionPercent > 0.15) score += 12;
   if (market.annualizedVolatility > 0.65) score += 18;
   if (market.annualizedVolatility > 0.4) score += 9;
+  if (market.isStale) score += 12;
   if (market.return20d > 0.18) score += 16;
   if (market.return5d > 0.1) score += 12;
   if (market.maxDrawdown60d < -0.25) score += 10;
@@ -197,6 +201,7 @@ function buildRiskFlags(trade, market, kelly, futurePositionPercent, suggestedSh
 
   if (kelly.edge <= 0) flags.push({ title: "Negative edge assumption", detail: "Your win rate and payoff assumptions do not support the trade." });
   if (market.return20d > 0.18) flags.push({ title: "Chasing risk", detail: "The stock has already moved sharply over the last month." });
+  if (market.isStale) flags.push({ title: "Stale market data", detail: "Confirm the current price before using this sizing estimate." });
   if (market.return5d > 0.1) flags.push({ title: "Hot short-term move", detail: "Recent price action may increase FOMO risk." });
   if (market.annualizedVolatility > 0.55) flags.push({ title: "High volatility", detail: "Position size should be reduced because price swings are elevated." });
   if (futurePositionPercent > 0.2) flags.push({ title: "Concentration risk", detail: "This would create a large single-name exposure." });

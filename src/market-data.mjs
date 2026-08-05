@@ -79,6 +79,7 @@ export function buildMarketSnapshot(symbol, candles, source = "manual") {
     maxDrawdown60d: maxDrawdown(sorted.slice(-60)),
     range20d: priceRange(sorted.slice(-20)),
     trend: classifyTrend(periodReturn(sorted, 20), periodReturn(sorted, 60)),
+    isStale: isStale(latest.date),
   };
 }
 
@@ -102,6 +103,7 @@ export function manualMarketSnapshot(symbol, latestClose, annualizedVolatility =
       high: close * (1 + vol * 0.12),
     },
     trend: "unknown",
+    isStale: false,
   };
 }
 
@@ -196,6 +198,14 @@ function classifyTrend(return20d, return60d) {
   if (return20d < -0.08 && return60d < -0.12) return "drawdown";
   if (return20d < -0.03 && return60d < 0) return "downtrend";
   return "mixed";
+}
+
+function isStale(dateText) {
+  const date = new Date(`${dateText}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return true;
+
+  const ageMs = Date.now() - date.getTime();
+  return ageMs > 5 * 24 * 60 * 60 * 1000;
 }
 
 function formatDate(date) {
