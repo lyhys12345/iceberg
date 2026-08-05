@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Iceberg | Pre-Trade Risk Layer</title>
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar" aria-label="Iceberg navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">I</div>
+          <div>
+            <h1>Iceberg</h1>
+            <p>Pre-trade risk layer</p>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" aria-label="Primary">
+          <button class="nav-tab active" data-tab="check" type="button">Check</button>
+          <button class="nav-tab" data-tab="rules" type="button">Rules</button>
+          <button class="nav-tab" data-tab="journal" type="button">Journal</button>
+        </nav>
+
+        <section class="status-panel" aria-label="Current discipline status">
+          <div>
+            <span class="eyebrow">Today</span>
+            <strong id="todayChecks">0 checks</strong>
+          </div>
+          <div>
+            <span class="eyebrow">Blocked</span>
+            <strong id="todayBlocks">0 trades</strong>
+          </div>
+          <div>
+            <span class="eyebrow">Risk Saved</span>
+            <strong id="riskSaved">$0</strong>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <section class="topbar">
+          <div>
+            <p class="eyebrow">Cool down before you trade</p>
+            <h2>Run a 60-second pre-trade check.</h2>
+          </div>
+          <button id="resetDemo" class="ghost-button" type="button">Reset demo</button>
+        </section>
+
+        <section id="checkTab" class="tab-panel active">
+          <div class="grid-layout">
+            <form id="tradeForm" class="panel trade-form">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Trade Intent</p>
+                  <h3>Before the order</h3>
+                </div>
+                <span class="pill">Not financial advice</span>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Symbol
+                  <input id="symbol" name="symbol" autocomplete="off" placeholder="NVDA" required />
+                </label>
+                <label>
+                  Asset
+                  <select id="assetType" name="assetType">
+                    <option value="stock">Stock</option>
+                    <option value="etf">ETF</option>
+                    <option value="option">Option</option>
+                    <option value="crypto">Crypto</option>
+                  </select>
+                </label>
+                <label>
+                  Direction
+                  <select id="direction" name="direction">
+                    <option value="buy">Buy</option>
+                    <option value="sell">Sell</option>
+                  </select>
+                </label>
+                <label>
+                  Planned size
+                  <input id="positionSize" name="positionSize" type="number" min="1" step="1" placeholder="1000" required />
+                </label>
+                <label>
+                  Account size
+                  <input id="accountSize" name="accountSize" type="number" min="1" step="100" placeholder="25000" required />
+                </label>
+                <label>
+                  Max loss on this trade
+                  <input id="maxLoss" name="maxLoss" type="number" min="0" step="10" placeholder="250" />
+                </label>
+              </div>
+
+              <label>
+                Why now?
+                <textarea id="thesis" name="thesis" rows="4" placeholder="My thesis, invalidation point, and what would make me exit."></textarea>
+              </label>
+
+              <fieldset class="choice-group">
+                <legend>What is driving this trade?</legend>
+                <label><input type="checkbox" name="drivers" value="news" /> News or social media spike</label>
+                <label><input type="checkbox" name="drivers" value="revenge" /> Making back a loss</label>
+                <label><input type="checkbox" name="drivers" value="fomo" /> Fear of missing out</label>
+                <label><input type="checkbox" name="drivers" value="plan" /> Existing plan or rule</label>
+              </fieldset>
+
+              <div class="slider-row">
+                <label for="emotionLevel">Emotion level</label>
+                <input id="emotionLevel" name="emotionLevel" type="range" min="1" max="10" value="5" />
+                <output id="emotionOutput" for="emotionLevel">5</output>
+              </div>
+
+              <button class="primary-button" type="submit">Analyze trade</button>
+            </form>
+
+            <section class="panel report-panel" aria-live="polite">
+              <div class="risk-visual">
+                <div class="risk-meter" id="riskMeter">
+                  <span id="riskScore">--</span>
+                </div>
+                <div>
+                  <p class="eyebrow">Behavioral Risk</p>
+                  <h3 id="riskTitle">Waiting for a trade</h3>
+                  <p id="riskSummary">Enter a trade idea to see whether Iceberg should pass, slow, or block the order.</p>
+                </div>
+              </div>
+
+              <div class="recommendation" id="recommendation">
+                <span class="recommendation-label">Action</span>
+                <strong>Run check first</strong>
+              </div>
+
+              <div class="rule-list" id="ruleList"></div>
+
+              <div class="cooldown hidden" id="cooldownBox">
+                <div>
+                  <p class="eyebrow">Cooldown</p>
+                  <strong id="cooldownTimer">00:00</strong>
+                </div>
+                <button id="cancelCooldown" class="ghost-button" type="button">Cancel</button>
+              </div>
+
+              <div class="decision-row">
+                <button id="savePassed" class="secondary-button" type="button" disabled>Save as passed</button>
+                <button id="saveBlocked" class="danger-button" type="button" disabled>I will not trade</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="rulesTab" class="tab-panel">
+          <form id="rulesForm" class="panel settings-form">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Personal Rules</p>
+                <h3>Rules you make while calm</h3>
+              </div>
+              <button class="secondary-button" type="submit">Save rules</button>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                Max risk per trade (%)
+                <input id="maxRiskPercent" name="maxRiskPercent" type="number" min="0.1" max="20" step="0.1" />
+              </label>
+              <label>
+                Max loss per trade ($)
+                <input id="maxLossDollars" name="maxLossDollars" type="number" min="1" step="10" />
+              </label>
+              <label>
+                High-risk cooldown (minutes)
+                <input id="cooldownMinutes" name="cooldownMinutes" type="number" min="1" max="120" step="1" />
+              </label>
+              <label>
+                Emotion warning threshold
+                <input id="emotionThreshold" name="emotionThreshold" type="number" min="1" max="10" step="1" />
+              </label>
+            </div>
+
+            <fieldset class="choice-group">
+              <legend>Required before passing</legend>
+              <label><input id="requireThesis" name="requireThesis" type="checkbox" /> Written thesis</label>
+              <label><input id="requireMaxLoss" name="requireMaxLoss" type="checkbox" /> Max loss entered</label>
+              <label><input id="extraFrictionForOptions" name="extraFrictionForOptions" type="checkbox" /> Extra friction for options</label>
+            </fieldset>
+          </form>
+        </section>
+
+        <section id="journalTab" class="tab-panel">
+          <section class="panel journal-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Journal</p>
+                <h3>Decisions before execution</h3>
+              </div>
+              <button id="clearJournal" class="ghost-button" type="button">Clear</button>
+            </div>
+            <div id="journalList" class="journal-list"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="src/app.mjs"></script>
+  </body>
+</html>

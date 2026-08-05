@@ -40,3 +40,24 @@ Iceberg is not a stock-picking app, brokerage, financial advisor, or AI buy/sell
 Iceberg measures behavioral risk, not investment merit.
 
 See [docs/product-plan.md](docs/product-plan.md) for the full product plan.
+
+## Prototype
+
+The first MVP is a static web app that runs entirely in the browser:
+
+- Pre-trade trade intent form
+- Behavioral risk score
+- Rule-triggered recommendations
+- High-risk cooldown timer
+- Personal rule settings
+- Local decision journal
+
+Open `index.html` in a browser to try the prototype.
+
+## Development
+
+Run the pure risk-engine tests with:
+
+```sh
+node tests/risk-engine.test.mjs
+```
