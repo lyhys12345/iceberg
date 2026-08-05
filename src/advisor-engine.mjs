@@ -97,6 +97,7 @@ function normalizeAdvisorInput(input, market) {
     currentShares: Math.max(0, toNumber(input.currentShares)),
     plannedBudget: positive(input.plannedBudget) || positive(input.cashAvailable) || 0,
     currentPrice,
+    thesis: String(input.thesis || "").trim(),
     maxRiskPercent: clamp(positive(input.maxRiskPercent) || 1, 0.1, 10),
     winProbability: clamp(positive(input.winProbability) || 50, 1, 99),
     upsidePercent: clamp(positive(input.upsidePercent) || 12, 0.1, 200),

@@ -1,5 +1,6 @@
 import { analyzeTrade, defaultRules } from "./risk-engine.mjs";
 import { analyzeAdvisorTrade } from "./advisor-engine.mjs";
+import { createAiRiskBrief } from "./ai-risk-layer.mjs";
 import { fetchMarketSnapshot, manualMarketSnapshot } from "./market-data.mjs";
 
 const storageKeys = {
@@ -66,6 +67,7 @@ const elements = {
   scenarioList: document.querySelector("#scenarioList"),
   protectionList: document.querySelector("#protectionList"),
   entryPlan: document.querySelector("#entryPlan"),
+  aiBrief: document.querySelector("#aiBrief"),
   saveAdvisorPlan: document.querySelector("#saveAdvisorPlan"),
   skipAdvisorTrade: document.querySelector("#skipAdvisorTrade"),
   exportJson: document.querySelector("#exportJson"),
@@ -209,11 +211,13 @@ function readAdvisorForm() {
     stopLossPercent: formData.get("stopLossPercent"),
     targetGainPercent: formData.get("targetGainPercent"),
     kellyFractionPercent: formData.get("kellyFractionPercent"),
+    thesis: formData.get("thesis"),
   };
 }
 
 function renderAdvisorReport(report) {
   const { decision, riskScore, sizing, kelly, scenarios, protection, entries, flags, market } = report;
+  const aiBrief = createAiRiskBrief(report);
 
   elements.advisorRiskScore.textContent = riskScore;
   elements.advisorRiskScore.dataset.level = decision.kind;
@@ -262,6 +266,21 @@ function renderAdvisorReport(report) {
           )
           .join("")
       : `<p class="empty-state">No entry plan because the model did not find a safe size.</p>`;
+
+  elements.aiBrief.innerHTML = `
+    <article class="ai-brief-card">
+      <div>
+        <span class="eyebrow">Pattern</span>
+        <strong>${aiBrief.pattern}</strong>
+      </div>
+      <div>
+        <span class="eyebrow">Confidence</span>
+        <strong>${formatPercent(aiBrief.confidence)}</strong>
+      </div>
+      <p>${aiBrief.summary}</p>
+      <small>${aiBrief.reflectionPrompt}</small>
+    </article>
+  `;
 }
 
 function renderMarketSnapshot(snapshot) {
@@ -542,7 +561,7 @@ function loadAdvisorProfileIntoForm() {
     document.querySelector("#advisorDownside").value = profile.downsidePercent || "8";
     document.querySelector("#advisorStopLoss").value = profile.stopLossPercent || "6";
     document.querySelector("#advisorTarget").value = profile.targetGainPercent || "12";
-    document.querySelector("#advisorKellyFraction").value = profile.kellyFractionPercent || "25";
+  document.querySelector("#advisorKellyFraction").value = profile.kellyFractionPercent || "25";
     state.marketSnapshot = null;
     elements.marketStatus.textContent = "Your risk assumptions were restored. Enter a ticker and price to generate a new plan.";
     return true;
@@ -631,6 +650,7 @@ function seedAdvisorExample() {
   document.querySelector("#advisorStopLoss").value = "6";
   document.querySelector("#advisorTarget").value = "12";
   document.querySelector("#advisorKellyFraction").value = "25";
+  document.querySelector("#advisorThesis").value = "Planned swing entry with defined stop, target, and position size. I will exit if the setup breaks below the stop.";
   state.marketSnapshot = manualMarketSnapshot("AAPL", 210, 0.32);
   renderMarketSnapshot(state.marketSnapshot);
   elements.marketStatus.textContent = "Example loaded with manual market estimate. Click Research to try live daily prices.";
@@ -652,6 +672,7 @@ function seedAdvisorDefaults() {
   document.querySelector("#advisorStopLoss").value = "6";
   document.querySelector("#advisorTarget").value = "12";
   document.querySelector("#advisorKellyFraction").value = "25";
+  document.querySelector("#advisorThesis").value = "";
   state.marketSnapshot = null;
   elements.marketStatus.textContent = "Enter a ticker and research recent performance. If live data is unavailable, enter the current price manually.";
 }
@@ -674,6 +695,7 @@ function resetAdvisorReport() {
   elements.scenarioList.innerHTML = "";
   elements.protectionList.innerHTML = "";
   elements.entryPlan.innerHTML = "";
+  elements.aiBrief.innerHTML = "";
 }
 
 function resetDemo() {

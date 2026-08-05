@@ -143,6 +143,11 @@
                 </label>
               </div>
 
+              <label>
+                Trade thesis
+                <textarea id="advisorThesis" name="thesis" rows="3" placeholder="Setup, invalidation point, exit condition, and why this fits your risk budget."></textarea>
+              </label>
+
               <div class="decision-row">
                 <button class="primary-button" type="submit">Generate plan</button>
                 <button id="loadAdvisorExample" class="ghost-button" type="button">Load example</button>
@@ -223,6 +228,17 @@
                   <p class="eyebrow">Entry plan</p>
                   <div id="entryPlan" class="rule-list"></div>
                 </div>
+              </section>
+
+              <section class="panel ai-brief-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">AI Risk Brief</p>
+                    <h3>Behavioral and sizing read</h3>
+                  </div>
+                  <span class="pill">local preview</span>
+                </div>
+                <div id="aiBrief" class="ai-brief"></div>
               </section>
             </section>
           </div>

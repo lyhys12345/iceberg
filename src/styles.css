@@ -299,7 +299,8 @@ button {
 
 .market-panel,
 .scenario-panel,
-.plan-panel {
+.plan-panel,
+.ai-brief-panel {
   display: grid;
   gap: 16px;
   padding: 20px;
@@ -357,6 +358,27 @@ button {
   display: grid;
   align-content: start;
   gap: 10px;
+}
+
+.ai-brief-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.6fr);
+  gap: 12px;
+  border: 1px solid #cddfd8;
+  border-radius: 8px;
+  background: #f5fbf8;
+  padding: 16px;
+}
+
+.ai-brief-card p,
+.ai-brief-card small {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.ai-brief-card small {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .panel-heading {
@@ -707,7 +729,8 @@ button:disabled {
   .metrics-grid,
   .market-grid,
   .scenario-list,
-  .plan-panel {
+  .plan-panel,
+  .ai-brief-card {
     grid-template-columns: 1fr;
   }
 
