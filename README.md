@@ -43,10 +43,13 @@ See [docs/product-plan.md](docs/product-plan.md) for the full product plan.
 
 See [docs/development-roadmap.md](docs/development-roadmap.md) for the step-by-step software development plan.
 
+See [docs/ai-trade-advisor-spec.md](docs/ai-trade-advisor-spec.md) for the AI pre-trade advisor specification.
+
 ## Prototype
 
 The first MVP is a static web app that runs entirely in the browser:
 
+- AI-style trade advisor for ticker research, Kelly sizing, scenarios, and protection planning
 - Pre-trade trade intent form
 - Behavioral risk score
 - Rule-triggered recommendations
@@ -62,4 +65,6 @@ Run the pure risk-engine tests with:
 
 ```sh
 node tests/risk-engine.test.mjs
+node tests/advisor-engine.test.mjs
+node tests/market-data.test.mjs
 ```

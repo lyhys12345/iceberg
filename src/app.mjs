@@ -1,4 +1,6 @@
 import { analyzeTrade, defaultRules } from "./risk-engine.mjs";
+import { analyzeAdvisorTrade } from "./advisor-engine.mjs";
+import { fetchMarketSnapshot, manualMarketSnapshot } from "./market-data.mjs";
 
 const storageKeys = {
   rules: "iceberg.rules.v1",
@@ -7,6 +9,8 @@ const storageKeys = {
 
 const state = {
   latestReport: null,
+  latestAdvisorReport: null,
+  marketSnapshot: null,
   cooldownId: null,
   cooldownEndsAt: 0,
 };
@@ -35,6 +39,31 @@ const elements = {
   todayChecks: document.querySelector("#todayChecks"),
   todayBlocks: document.querySelector("#todayBlocks"),
   riskSaved: document.querySelector("#riskSaved"),
+  advisorForm: document.querySelector("#advisorForm"),
+  researchTicker: document.querySelector("#researchTicker"),
+  loadAdvisorExample: document.querySelector("#loadAdvisorExample"),
+  marketStatus: document.querySelector("#marketStatus"),
+  advisorRiskScore: document.querySelector("#advisorRiskScore"),
+  advisorDecisionTitle: document.querySelector("#advisorDecisionTitle"),
+  advisorDecisionSummary: document.querySelector("#advisorDecisionSummary"),
+  advisorSuggestedSize: document.querySelector("#advisorSuggestedSize"),
+  advisorSuggestedShares: document.querySelector("#advisorSuggestedShares"),
+  advisorKelly: document.querySelector("#advisorKelly"),
+  advisorKellyEdge: document.querySelector("#advisorKellyEdge"),
+  advisorStopRisk: document.querySelector("#advisorStopRisk"),
+  advisorStopPrice: document.querySelector("#advisorStopPrice"),
+  advisorExposure: document.querySelector("#advisorExposure"),
+  advisorMarketTitle: document.querySelector("#advisorMarketTitle"),
+  advisorMarketSource: document.querySelector("#advisorMarketSource"),
+  market5d: document.querySelector("#market5d"),
+  market20d: document.querySelector("#market20d"),
+  market60d: document.querySelector("#market60d"),
+  marketVol: document.querySelector("#marketVol"),
+  marketDrawdown: document.querySelector("#marketDrawdown"),
+  marketTrend: document.querySelector("#marketTrend"),
+  scenarioList: document.querySelector("#scenarioList"),
+  protectionList: document.querySelector("#protectionList"),
+  entryPlan: document.querySelector("#entryPlan"),
 };
 
 init();
@@ -45,6 +74,7 @@ function init() {
   loadRulesIntoForm();
   renderJournal();
   updateSummary();
+  seedAdvisorExample();
   seedDemoTrade();
 }
 
@@ -70,6 +100,20 @@ function bindForms() {
     renderReport(report);
   });
 
+  elements.researchTicker.addEventListener("click", async () => {
+    await researchAdvisorTicker();
+  });
+
+  elements.advisorForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    generateAdvisorPlan();
+  });
+
+  elements.loadAdvisorExample.addEventListener("click", () => {
+    seedAdvisorExample();
+    resetAdvisorReport();
+  });
+
   elements.rulesForm.addEventListener("submit", (event) => {
     event.preventDefault();
     saveRules(readRulesForm());
@@ -86,6 +130,137 @@ function bindForms() {
     updateSummary();
   });
   elements.resetDemo.addEventListener("click", resetDemo);
+}
+
+async function researchAdvisorTicker() {
+  const symbol = document.querySelector("#advisorSymbol").value.trim().toUpperCase();
+  if (!symbol) {
+    elements.marketStatus.textContent = "Enter a ticker first.";
+    return;
+  }
+
+  elements.researchTicker.disabled = true;
+  elements.marketStatus.textContent = `Researching ${symbol} recent daily prices...`;
+
+  try {
+    const snapshot = await fetchMarketSnapshot(symbol);
+    state.marketSnapshot = snapshot;
+    document.querySelector("#advisorPrice").value = snapshot.latestClose.toFixed(2);
+    renderMarketSnapshot(snapshot);
+    elements.marketStatus.textContent = `Loaded ${symbol} market snapshot as of ${snapshot.asOf}.`;
+  } catch (error) {
+    const fallback = manualMarketSnapshot(symbol, document.querySelector("#advisorPrice").value || 100);
+    state.marketSnapshot = fallback;
+    renderMarketSnapshot(fallback);
+    elements.marketStatus.textContent = `Live market data was unavailable. Using manual price estimate for ${symbol}.`;
+  } finally {
+    elements.researchTicker.disabled = false;
+  }
+}
+
+function generateAdvisorPlan() {
+  const advisorInput = readAdvisorForm();
+  const market =
+    state.marketSnapshot && state.marketSnapshot.symbol === advisorInput.symbol
+      ? state.marketSnapshot
+      : manualMarketSnapshot(advisorInput.symbol, advisorInput.currentPrice);
+  const report = analyzeAdvisorTrade(advisorInput, market);
+
+  state.latestAdvisorReport = report;
+  state.marketSnapshot = market;
+  renderAdvisorReport(report);
+}
+
+function readAdvisorForm() {
+  const formData = new FormData(elements.advisorForm);
+  return {
+    symbol: String(formData.get("symbol") || "").trim().toUpperCase(),
+    side: formData.get("side"),
+    horizon: formData.get("horizon"),
+    currentPrice: formData.get("currentPrice"),
+    accountValue: formData.get("accountValue"),
+    cashAvailable: formData.get("cashAvailable"),
+    currentShares: formData.get("currentShares"),
+    plannedBudget: formData.get("plannedBudget"),
+    maxRiskPercent: formData.get("maxRiskPercent"),
+    winProbability: formData.get("winProbability"),
+    upsidePercent: formData.get("upsidePercent"),
+    downsidePercent: formData.get("downsidePercent"),
+    stopLossPercent: formData.get("stopLossPercent"),
+    targetGainPercent: formData.get("targetGainPercent"),
+  };
+}
+
+function renderAdvisorReport(report) {
+  const { decision, riskScore, sizing, kelly, scenarios, protection, entries, flags, market } = report;
+
+  elements.advisorRiskScore.textContent = riskScore;
+  elements.advisorRiskScore.dataset.level = decision.kind;
+  elements.advisorDecisionTitle.textContent = decision.title;
+  elements.advisorDecisionSummary.textContent = decision.summary;
+  elements.advisorSuggestedSize.textContent = formatCurrency(sizing.suggestedDollars);
+  elements.advisorSuggestedShares.textContent = `${sizing.suggestedShares} shares`;
+  elements.advisorKelly.textContent = formatPercent(kelly.fractionalKelly);
+  elements.advisorKellyEdge.textContent = `full Kelly ${formatPercent(kelly.fullKelly)} · edge ${formatPercent(kelly.edge)}`;
+  elements.advisorStopRisk.textContent = formatCurrency(Math.abs(scenarios.stop.pnl));
+  elements.advisorStopPrice.textContent = `stop ${formatCurrency(scenarios.stop.price)}`;
+  elements.advisorExposure.textContent = formatPercent(sizing.futurePositionPercent);
+
+  renderMarketSnapshot(market);
+
+  elements.scenarioList.innerHTML = [
+    scenarioItem("Bull", scenarios.bull.price, scenarios.bull.pnl),
+    scenarioItem("Base", scenarios.base.price, scenarios.base.pnl),
+    scenarioItem("Bear", scenarios.bear.price, scenarios.bear.pnl),
+    scenarioItem("Stop", scenarios.stop.price, scenarios.stop.pnl),
+  ].join("");
+
+  elements.protectionList.innerHTML = [...flags, ...protection]
+    .map(
+      (item) => `
+        <article class="rule-item">
+          <strong>${item.title}</strong>
+          <span>${item.detail}</span>
+        </article>
+      `,
+    )
+    .join("");
+
+  elements.entryPlan.innerHTML =
+    entries.length > 0
+      ? entries
+          .map(
+            (step) => `
+              <article class="rule-item">
+                <strong>${step.label}: ${step.shares} shares</strong>
+                <span>${step.trigger}</span>
+              </article>
+            `,
+          )
+          .join("")
+      : `<p class="empty-state">No entry plan because the model did not find a safe size.</p>`;
+}
+
+function renderMarketSnapshot(snapshot) {
+  elements.advisorMarketTitle.textContent = `${snapshot.symbol} · ${formatCurrency(snapshot.latestClose)} · ${snapshot.asOf}`;
+  elements.advisorMarketSource.textContent = snapshot.source;
+  elements.market5d.textContent = formatPercent(snapshot.return5d);
+  elements.market20d.textContent = formatPercent(snapshot.return20d);
+  elements.market60d.textContent = formatPercent(snapshot.return60d);
+  elements.marketVol.textContent = formatPercent(snapshot.annualizedVolatility);
+  elements.marketDrawdown.textContent = formatPercent(snapshot.maxDrawdown60d);
+  elements.marketTrend.textContent = snapshot.trend;
+}
+
+function scenarioItem(label, price, pnl) {
+  const level = pnl >= 0 ? "positive" : "negative";
+  return `
+    <article class="scenario-item" data-level="${level}">
+      <span>${label}</span>
+      <strong>${formatCurrency(price)}</strong>
+      <small>${pnl >= 0 ? "+" : ""}${formatCurrency(pnl)}</small>
+    </article>
+  `;
 }
 
 function readTradeForm() {
@@ -198,8 +373,8 @@ function renderJournal() {
       return `
         <article class="journal-item">
           <div>
-            <strong>${trade.symbol || "UNKNOWN"} · ${trade.assetType}</strong>
-            <span>${date} · ${entry.decision} · score ${score}</span>
+            <strong>${trade.symbol || "UNKNOWN"} - ${trade.assetType}</strong>
+            <span>${date} - ${entry.decision} - score ${score}</span>
           </div>
           <span class="journal-action" data-level="${action.kind}">${action.title}</span>
         </article>
@@ -276,6 +451,44 @@ function seedDemoTrade() {
   elements.emotionOutput.value = "8";
 }
 
+function seedAdvisorExample() {
+  document.querySelector("#advisorSymbol").value = "AAPL";
+  document.querySelector("#advisorSide").value = "buy";
+  document.querySelector("#advisorHorizon").value = "swing";
+  document.querySelector("#advisorPrice").value = "210";
+  document.querySelector("#advisorAccountValue").value = "25000";
+  document.querySelector("#advisorCash").value = "8000";
+  document.querySelector("#advisorCurrentShares").value = "10";
+  document.querySelector("#advisorBudget").value = "3000";
+  document.querySelector("#advisorMaxRisk").value = "1";
+  document.querySelector("#advisorWinProbability").value = "55";
+  document.querySelector("#advisorUpside").value = "12";
+  document.querySelector("#advisorDownside").value = "8";
+  document.querySelector("#advisorStopLoss").value = "6";
+  document.querySelector("#advisorTarget").value = "12";
+  state.marketSnapshot = manualMarketSnapshot("AAPL", 210, 0.32);
+  renderMarketSnapshot(state.marketSnapshot);
+  elements.marketStatus.textContent = "Example loaded with manual market estimate. Click Research to try live daily prices.";
+}
+
+function resetAdvisorReport() {
+  state.latestAdvisorReport = null;
+  elements.advisorRiskScore.textContent = "--";
+  elements.advisorRiskScore.removeAttribute("data-level");
+  elements.advisorDecisionTitle.textContent = "Waiting for ticker";
+  elements.advisorDecisionSummary.textContent = "Research a stock and generate a plan to see size, scenarios, and protection settings.";
+  elements.advisorSuggestedSize.textContent = "--";
+  elements.advisorSuggestedShares.textContent = "-- shares";
+  elements.advisorKelly.textContent = "--";
+  elements.advisorKellyEdge.textContent = "edge --";
+  elements.advisorStopRisk.textContent = "--";
+  elements.advisorStopPrice.textContent = "stop --";
+  elements.advisorExposure.textContent = "--";
+  elements.scenarioList.innerHTML = "";
+  elements.protectionList.innerHTML = "";
+  elements.entryPlan.innerHTML = "";
+}
+
 function resetDemo() {
   localStorage.removeItem(storageKeys.rules);
   localStorage.removeItem(storageKeys.journal);
@@ -294,6 +507,20 @@ function resetDemo() {
   elements.ruleList.innerHTML = "";
   elements.savePassed.disabled = true;
   elements.saveBlocked.disabled = true;
+  seedAdvisorExample();
+  resetAdvisorReport();
   renderJournal();
   updateSummary();
+}
+
+function formatCurrency(value) {
+  return Number(value).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatPercent(value) {
+  return `${(Number(value) * 100).toFixed(1)}%`;
 }

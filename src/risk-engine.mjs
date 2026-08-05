@@ -16,12 +16,12 @@ const emotionalWords = [
   "cant miss",
   "recover",
   "make it back",
-  "爆",
-  "梭哈",
-  "翻本",
-  "追",
-  "赶紧",
-  "错过",
+  "bao",
+  "suoha",
+  "fanben",
+  "chase",
+  "hurry",
+  "miss out",
 ];
 
 export function normalizeTrade(rawTrade) {

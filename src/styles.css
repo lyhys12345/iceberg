@@ -177,12 +177,173 @@ button {
 }
 
 .trade-form,
+.advisor-form,
 .settings-form,
 .journal-panel,
 .report-panel {
   display: grid;
   gap: 20px;
   padding: 22px;
+}
+
+.advisor-layout {
+  display: grid;
+  grid-template-columns: minmax(390px, 0.88fr) minmax(0, 1.12fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.advisor-report {
+  display: grid;
+  gap: 18px;
+}
+
+.ticker-strip {
+  display: grid;
+  grid-template-columns: 1.1fr 0.8fr 0.9fr max-content;
+  gap: 12px;
+  align-items: end;
+}
+
+.market-status {
+  border: 1px solid #d7e4df;
+  border-radius: 8px;
+  background: #f3faf7;
+  color: var(--muted);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+}
+
+.assumption-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.decision-panel {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 18px;
+  align-items: center;
+  padding: 20px;
+}
+
+.decision-score {
+  display: grid;
+  width: 92px;
+  height: 92px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 1.9rem;
+  font-weight: 900;
+}
+
+.decision-score[data-level="consider"] {
+  background: var(--green);
+}
+
+.decision-score[data-level="reduce"] {
+  background: var(--amber);
+}
+
+.decision-score[data-level="avoid"] {
+  background: var(--red);
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  display: grid;
+  gap: 7px;
+  min-height: 120px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 34px rgba(31, 44, 38, 0.08);
+  padding: 15px;
+}
+
+.metric-card span,
+.metric-card small,
+.market-grid span,
+.scenario-item span,
+.scenario-item small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.metric-card strong {
+  overflow-wrap: anywhere;
+  font-size: 1.25rem;
+}
+
+.market-panel,
+.scenario-panel,
+.plan-panel {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.market-grid div {
+  display: grid;
+  gap: 5px;
+  border-radius: 8px;
+  background: #f8faf7;
+  padding: 12px;
+}
+
+.market-grid strong {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.scenario-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scenario-item {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.scenario-item[data-level="positive"] strong,
+.scenario-item[data-level="positive"] small {
+  color: var(--green);
+}
+
+.scenario-item[data-level="negative"] strong,
+.scenario-item[data-level="negative"] small {
+  color: var(--red);
+}
+
+.plan-panel {
+  grid-template-columns: 1fr 1fr;
+}
+
+.plan-column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
 }
 
 .panel-heading {
@@ -484,7 +645,8 @@ button:disabled {
 
 @media (max-width: 920px) {
   .shell,
-  .grid-layout {
+  .grid-layout,
+  .advisor-layout {
     grid-template-columns: 1fr;
   }
 
@@ -494,7 +656,7 @@ button:disabled {
   }
 
   .nav-tabs {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 
   .nav-tab {
@@ -518,7 +680,14 @@ button:disabled {
   .form-grid,
   .choice-group,
   .decision-row,
-  .risk-visual {
+  .risk-visual,
+  .ticker-strip,
+  .assumption-grid,
+  .decision-panel,
+  .metrics-grid,
+  .market-grid,
+  .scenario-list,
+  .plan-panel {
     grid-template-columns: 1fr;
   }
 

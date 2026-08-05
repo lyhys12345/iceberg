@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Iceberg | Pre-Trade Risk Layer</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="src/styles.css" />
   </head>
   <body>
@@ -18,7 +19,8 @@
         </div>
 
         <nav class="nav-tabs" aria-label="Primary">
-          <button class="nav-tab active" data-tab="check" type="button">Check</button>
+          <button class="nav-tab active" data-tab="advisor" type="button">Advisor</button>
+          <button class="nav-tab" data-tab="check" type="button">Check</button>
           <button class="nav-tab" data-tab="rules" type="button">Rules</button>
           <button class="nav-tab" data-tab="journal" type="button">Journal</button>
         </nav>
@@ -42,13 +44,183 @@
       <section class="workspace">
         <section class="topbar">
           <div>
-            <p class="eyebrow">Cool down before you trade</p>
-            <h2>Run a 60-second pre-trade check.</h2>
+            <p class="eyebrow">AI pre-trade risk layer</p>
+            <h2>Estimate the trade before you place it.</h2>
           </div>
           <button id="resetDemo" class="ghost-button" type="button">Reset demo</button>
         </section>
 
-        <section id="checkTab" class="tab-panel active">
+        <section id="advisorTab" class="tab-panel active">
+          <div class="advisor-layout">
+            <form id="advisorForm" class="panel advisor-form">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Trade Advisor</p>
+                  <h3>Risk, size, and protection</h3>
+                </div>
+                <span class="pill">Estimate only</span>
+              </div>
+
+              <div class="ticker-strip">
+                <label>
+                  Symbol
+                  <input id="advisorSymbol" name="symbol" autocomplete="off" placeholder="AAPL" required />
+                </label>
+                <label>
+                  Direction
+                  <select id="advisorSide" name="side">
+                    <option value="buy">Buy</option>
+                    <option value="sell">Sell</option>
+                  </select>
+                </label>
+                <label>
+                  Horizon
+                  <select id="advisorHorizon" name="horizon">
+                    <option value="swing">Swing</option>
+                    <option value="position">Position</option>
+                    <option value="day">Day trade</option>
+                    <option value="long">Long-term</option>
+                  </select>
+                </label>
+                <button id="researchTicker" class="secondary-button" type="button">Research</button>
+              </div>
+
+              <div class="market-status" id="marketStatus">
+                Enter a ticker and research recent performance. If live data is unavailable, Iceberg can use your price estimate.
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Current price
+                  <input id="advisorPrice" name="currentPrice" type="number" min="0.01" step="0.01" placeholder="185.00" />
+                </label>
+                <label>
+                  Account value
+                  <input id="advisorAccountValue" name="accountValue" type="number" min="100" step="1" placeholder="25000" required />
+                </label>
+                <label>
+                  Available cash
+                  <input id="advisorCash" name="cashAvailable" type="number" min="0" step="1" placeholder="5000" required />
+                </label>
+                <label>
+                  Current shares
+                  <input id="advisorCurrentShares" name="currentShares" type="number" min="0" step="1" placeholder="0" />
+                </label>
+                <label>
+                  Planned budget
+                  <input id="advisorBudget" name="plannedBudget" type="number" min="0" step="1" placeholder="3000" required />
+                </label>
+                <label>
+                  Max account risk (%)
+                  <input id="advisorMaxRisk" name="maxRiskPercent" type="number" min="0.1" max="10" step="0.1" placeholder="1" required />
+                </label>
+              </div>
+
+              <div class="assumption-grid">
+                <label>
+                  Win probability (%)
+                  <input id="advisorWinProbability" name="winProbability" type="number" min="1" max="99" step="1" placeholder="55" required />
+                </label>
+                <label>
+                  Upside estimate (%)
+                  <input id="advisorUpside" name="upsidePercent" type="number" min="0.1" step="0.1" placeholder="12" required />
+                </label>
+                <label>
+                  Downside estimate (%)
+                  <input id="advisorDownside" name="downsidePercent" type="number" min="0.1" step="0.1" placeholder="8" required />
+                </label>
+                <label>
+                  Stop-loss distance (%)
+                  <input id="advisorStopLoss" name="stopLossPercent" type="number" min="0.1" step="0.1" placeholder="6" required />
+                </label>
+                <label>
+                  Take-profit distance (%)
+                  <input id="advisorTarget" name="targetGainPercent" type="number" min="0.1" step="0.1" placeholder="12" required />
+                </label>
+              </div>
+
+              <div class="decision-row">
+                <button class="primary-button" type="submit">Generate plan</button>
+                <button id="loadAdvisorExample" class="ghost-button" type="button">Load example</button>
+              </div>
+            </form>
+
+            <section class="advisor-report" aria-live="polite">
+              <section class="panel decision-panel">
+                <div class="decision-score" id="advisorRiskScore">--</div>
+                <div>
+                  <p class="eyebrow">Decision estimate</p>
+                  <h3 id="advisorDecisionTitle">Waiting for ticker</h3>
+                  <p id="advisorDecisionSummary">Research a stock and generate a plan to see size, scenarios, and protection settings.</p>
+                </div>
+              </section>
+
+              <section class="metrics-grid">
+                <article class="metric-card">
+                  <span>Suggested size</span>
+                  <strong id="advisorSuggestedSize">--</strong>
+                  <small id="advisorSuggestedShares">-- shares</small>
+                </article>
+                <article class="metric-card">
+                  <span>Fractional Kelly</span>
+                  <strong id="advisorKelly">--</strong>
+                  <small id="advisorKellyEdge">edge --</small>
+                </article>
+                <article class="metric-card">
+                  <span>Downside at stop</span>
+                  <strong id="advisorStopRisk">--</strong>
+                  <small id="advisorStopPrice">stop --</small>
+                </article>
+                <article class="metric-card">
+                  <span>Future exposure</span>
+                  <strong id="advisorExposure">--</strong>
+                  <small>after trade</small>
+                </article>
+              </section>
+
+              <section class="panel market-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Recent Performance</p>
+                    <h3 id="advisorMarketTitle">No market snapshot</h3>
+                  </div>
+                  <span class="pill" id="advisorMarketSource">source --</span>
+                </div>
+                <div class="market-grid">
+                  <div><span>5D</span><strong id="market5d">--</strong></div>
+                  <div><span>20D</span><strong id="market20d">--</strong></div>
+                  <div><span>60D</span><strong id="market60d">--</strong></div>
+                  <div><span>Volatility</span><strong id="marketVol">--</strong></div>
+                  <div><span>60D drawdown</span><strong id="marketDrawdown">--</strong></div>
+                  <div><span>Trend</span><strong id="marketTrend">--</strong></div>
+                </div>
+              </section>
+
+              <section class="panel scenario-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Upside / Downside</p>
+                    <h3>Scenario estimate</h3>
+                  </div>
+                </div>
+                <div id="scenarioList" class="scenario-list"></div>
+              </section>
+
+              <section class="panel plan-panel">
+                <div class="plan-column">
+                  <p class="eyebrow">Protection</p>
+                  <div id="protectionList" class="rule-list"></div>
+                </div>
+                <div class="plan-column">
+                  <p class="eyebrow">Entry plan</p>
+                  <div id="entryPlan" class="rule-list"></div>
+                </div>
+              </section>
+            </section>
+          </div>
+        </section>
+
+        <section id="checkTab" class="tab-panel">
           <div class="grid-layout">
             <form id="tradeForm" class="panel trade-form">
               <div class="panel-heading">
@@ -86,7 +258,7 @@
                 </label>
                 <label>
                   Account size
-                  <input id="accountSize" name="accountSize" type="number" min="1" step="100" placeholder="25000" required />
+                  <input id="accountSize" name="accountSize" type="number" min="100" step="1" placeholder="25000" required />
                 </label>
                 <label>
                   Max loss on this trade
@@ -168,7 +340,7 @@
               </label>
               <label>
                 Max loss per trade ($)
-                <input id="maxLossDollars" name="maxLossDollars" type="number" min="1" step="10" />
+                  <input id="maxLossDollars" name="maxLossDollars" type="number" min="0" step="1" />
               </label>
               <label>
                 High-risk cooldown (minutes)
