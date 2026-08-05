@@ -12,6 +12,14 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
     return localSnapshot;
   }
 
+  if (typeof window === "undefined" && process.env.ALPHA_VANTAGE_API_KEY) {
+    try {
+      return await fetchAlphaVantageSnapshot(normalizedSymbol, process.env.ALPHA_VANTAGE_API_KEY, fetchImpl);
+    } catch {
+      // Fall through to the public no-key provider.
+    }
+  }
+
   const url = buildStooqUrl(normalizedSymbol);
   const requests = [
     { url, source: "Stooq daily prices" },
@@ -46,6 +54,43 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
   }
 
   return buildMarketSnapshot(normalizedSymbol, candles, source);
+}
+
+export async function fetchAlphaVantageSnapshot(symbol, apiKey, fetchImpl = fetch) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  const params = new URLSearchParams({
+    function: "TIME_SERIES_DAILY",
+    symbol: normalizedSymbol,
+    outputsize: "compact",
+    apikey: apiKey,
+  });
+  const response = await fetchImpl(`https://www.alphavantage.co/query?${params.toString()}`);
+
+  if (!response.ok) {
+    throw new Error(`Alpha Vantage request failed with ${response.status}.`);
+  }
+
+  const data = await response.json();
+  return buildAlphaVantageSnapshot(normalizedSymbol, data);
+}
+
+export function buildAlphaVantageSnapshot(symbol, data) {
+  const series = data["Time Series (Daily)"];
+  if (!series) {
+    const message = data.Note || data.Information || data["Error Message"] || "Alpha Vantage returned no daily time series.";
+    throw new Error(message);
+  }
+
+  const candles = Object.entries(series).map(([date, row]) => ({
+    date,
+    open: toNumber(row["1. open"]),
+    high: toNumber(row["2. high"]),
+    low: toNumber(row["3. low"]),
+    close: toNumber(row["4. close"]),
+    volume: toNumber(row["5. volume"]),
+  }));
+
+  return buildMarketSnapshot(symbol, candles, "Alpha Vantage daily prices");
 }
 
 async function fetchLocalSnapshot(symbol, fetchImpl) {

@@ -3,8 +3,11 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchMarketSnapshot } from "./src/market-data.mjs";
+import { generateOpenAiRiskBrief } from "./src/openai-risk-agent.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
+await loadEnv();
+
 const port = Number(process.env.PORT || 5173);
 const host = process.env.HOST || "127.0.0.1";
 
@@ -25,6 +28,13 @@ const server = createServer(async (request, response) => {
       const symbol = decodeURIComponent(url.pathname.replace("/api/market/", ""));
       const snapshot = await fetchMarketSnapshot(symbol);
       sendJson(response, 200, snapshot);
+      return;
+    }
+
+    if (url.pathname === "/api/ai-risk-brief" && request.method === "POST") {
+      const body = await readJson(request);
+      const brief = await generateOpenAiRiskBrief(body.report);
+      sendJson(response, 200, brief);
       return;
     }
 
@@ -53,6 +63,30 @@ async function serveStatic(pathname, response) {
     response.end(content);
   } catch {
     sendText(response, 404, "Not found");
+  }
+}
+
+async function readJson(request) {
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(chunk);
+  }
+
+  return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+}
+
+async function loadEnv() {
+  try {
+    const content = await readFile(join(root, ".env"), "utf8");
+    content.split(/\r?\n/).forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) return;
+      const [key, ...rest] = trimmed.split("=");
+      if (!key || process.env[key]) return;
+      process.env[key] = rest.join("=").replace(/^["']|["']$/g, "");
+    });
+  } catch {
+    // .env is optional.
   }
 }
 

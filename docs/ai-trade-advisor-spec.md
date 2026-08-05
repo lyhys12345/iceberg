@@ -121,15 +121,16 @@ The product can provide decision support, but legal review is required before ch
 
 ## Current Implementation
 
-The first implementation is still a static browser app.
+The current implementation is a browser app with a lightweight Node backend.
 
 Added modules:
 
 - `src/market-data.mjs`
 - `src/advisor-engine.mjs`
+- `src/openai-risk-agent.mjs`
 
-The market data module attempts to fetch recent daily prices from a no-key public source. If the data request fails, the UI can still run using the user's manually entered price.
+The market data module attempts to fetch recent daily prices through the backend. If `ALPHA_VANTAGE_API_KEY` is configured, the server uses Alpha Vantage daily prices first. If that fails, it falls back to the no-key public provider. If all live requests fail, the UI can still run using the user's manually entered price.
 
-The advisor engine is deterministic and testable. It does not use a live LLM yet. This is intentional: hard sizing and risk rules should not depend on AI hallucination.
+The advisor engine is deterministic and testable. Hard sizing and risk rules do not depend on AI. The OpenAI-backed risk brief is an explanation layer. If `OPENAI_API_KEY` is not configured or the request fails, the app keeps the local deterministic brief.
 
-Future AI should be added as an explanation layer after the deterministic risk engine is stable.
+API keys must stay on the backend. The frontend calls `/api/market/:symbol` and `/api/ai-risk-brief`.

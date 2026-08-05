@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildMarketSnapshot, parseStooqCsv } from "../src/market-data.mjs";
+import { buildAlphaVantageSnapshot, buildMarketSnapshot, parseStooqCsv } from "../src/market-data.mjs";
 
 const csv = `Date,Open,High,Low,Close,Volume
 2026-01-01,100,102,99,101,1000
@@ -44,5 +44,28 @@ assert.ok(snapshot.return5d > 0);
 assert.ok(snapshot.annualizedVolatility >= 0);
 assert.equal(snapshot.range20d.high, 132);
 assert.equal(snapshot.isStale, true);
+
+const alpha = buildAlphaVantageSnapshot("IBM", {
+  "Time Series (Daily)": {
+    "2026-08-05": {
+      "1. open": "100",
+      "2. high": "105",
+      "3. low": "98",
+      "4. close": "104",
+      "5. volume": "1000",
+    },
+    "2026-08-04": {
+      "1. open": "99",
+      "2. high": "101",
+      "3. low": "97",
+      "4. close": "100",
+      "5. volume": "900",
+    },
+  },
+});
+
+assert.equal(alpha.symbol, "IBM");
+assert.equal(alpha.latestClose, 104);
+assert.equal(alpha.source, "Alpha Vantage daily prices");
 
 console.log("market-data tests passed");

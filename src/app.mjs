@@ -349,18 +349,39 @@ function renderAdvisorReport(report) {
           .join("")
       : `<p class="empty-state">No entry plan because the model did not find a safe size.</p>`;
 
+  renderAiBrief(aiBrief);
+  hydrateAiRiskBrief(report);
+}
+
+async function hydrateAiRiskBrief(report) {
+  try {
+    const response = await fetch("/api/ai-risk-brief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ report }),
+    });
+
+    if (!response.ok) return;
+    const brief = await response.json();
+    renderAiBrief(brief);
+  } catch {
+    // Keep the local deterministic brief if the backend or OpenAI is unavailable.
+  }
+}
+
+function renderAiBrief(aiBrief) {
   elements.aiBrief.innerHTML = `
     <article class="ai-brief-card">
       <div>
         <span class="eyebrow">Pattern</span>
-        <strong>${aiBrief.pattern}</strong>
+        <strong>${escapeHtml(aiBrief.pattern)}</strong>
       </div>
       <div>
-        <span class="eyebrow">Confidence</span>
+        <span class="eyebrow">${aiBrief.source === "openai" ? "OpenAI" : "Local"} confidence</span>
         <strong>${formatPercent(aiBrief.confidence)}</strong>
       </div>
-      <p>${aiBrief.summary}</p>
-      <small>${aiBrief.reflectionPrompt}</small>
+      <p>${escapeHtml(aiBrief.summary)}</p>
+      <small>${escapeHtml(aiBrief.reflectionPrompt)}</small>
     </article>
   `;
 }

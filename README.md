@@ -67,6 +67,16 @@ Open `index.html` in a browser to try the prototype, or run the local server to 
 node server.mjs
 ```
 
+Copy `.env.example` to `.env` and set keys for real backend data:
+
+```sh
+OPENAI_API_KEY=your_openai_key
+OPENAI_MODEL=gpt-5.6
+ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
+```
+
+The frontend never stores API keys. It calls the local Node server, which calls market data and OpenAI from the backend.
+
 ## Development
 
 Run the pure risk-engine tests with:

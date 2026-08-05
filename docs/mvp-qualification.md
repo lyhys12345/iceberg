@@ -24,13 +24,14 @@ The MVP does not need brokerage execution, paid accounts, or a live LLM to be us
 - Bull, base, bear, and stop-loss scenarios.
 - Stop-loss, take-profit, position cap, volatility buffer, and staged entry plan.
 - Local market-data provider with a Node server proxy route.
+- Alpha Vantage backend provider when `ALPHA_VANTAGE_API_KEY` is configured.
 - Manual price fallback when live market data is unavailable.
 - Advisor plan persistence.
 - Combined history for advisor plans and discipline checks.
 - JSON and CSV export.
 - Local user risk assumption persistence.
 - Adjustable Kelly fraction with conservative 25 percent default.
-- Local AI risk brief preview for behavioral and sizing interpretation.
+- OpenAI-backed AI risk brief when `OPENAI_API_KEY` is configured, with local fallback.
 - Clean first-run advisor state with explicit "Load example" behavior.
 - Lightweight first-run risk profile panel.
 - Browser smoke test coverage by manual Playwright check.
