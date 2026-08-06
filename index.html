@@ -1,10 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Iceberg | Pre-Trade Risk Layer</title>
     <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="src/styles.css" />
   </head>
   <body>
@@ -43,11 +46,16 @@
 
       <section class="workspace">
         <section class="topbar">
-          <div>
+          <div class="topbar-copy">
             <p class="eyebrow">AI pre-trade risk layer</p>
-            <h2>Ask before you trade.</h2>
+            <h2>Trade slower. Size smarter.</h2>
+            <p class="topbar-subtitle">A calm risk layer between impulse and execution.</p>
           </div>
-          <button id="resetDemo" class="ghost-button" type="button">Reset</button>
+          <div class="topbar-actions">
+            <span class="system-chip">Risk-first</span>
+            <span class="system-chip">Kelly sizing</span>
+            <button id="resetDemo" class="ghost-button" type="button">Reset</button>
+          </div>
         </section>
 
         <section id="advisorTab" class="tab-panel active">
@@ -60,17 +68,22 @@
           </section>
 
           <section class="panel chat-panel">
+            <div class="command-strip" aria-hidden="true">
+              <span>Pre-order check</span>
+              <strong>AI Agent</strong>
+              <span>Position sizing</span>
+            </div>
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">Ask Iceberg</p>
-                <h3>Describe the trade in plain language</h3>
+                <h3>Ask your pre-trade risk layer</h3>
               </div>
               <span class="pill">agent mode</span>
             </div>
             <div id="agentConversation" class="agent-conversation">
               <article class="agent-message assistant">
                 <strong>Iceberg</strong>
-                <p>Tell me the stock, your account size, and how much you want to buy. I will estimate size, downside, and protection in plain English.</p>
+                <p>Tell me the stock, your account size, and how much you want to buy. I will estimate sizing, downside, and protection before the order reaches you.</p>
               </article>
             </div>
             <form id="agentForm" class="agent-form">
