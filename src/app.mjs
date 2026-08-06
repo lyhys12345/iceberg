@@ -217,7 +217,7 @@ async function askBeginnerAgent(message) {
   elements.agentPrompt.value = "";
   appendAgentMessage("assistant", "Let me check the trade, size, and downside first...");
 
-  const parsed = parseBeginnerTradeMessage(text, readAdvisorDefaults());
+  const parsed = parseBeginnerTradeMessage(text, readTrustedAdvisorDefaults());
   let marketSearchNote = "";
 
   if (parsed.symbol && !parsed.currentPrice) {
@@ -518,6 +518,33 @@ function readAdvisorDefaults() {
     stopLossPercent: document.querySelector("#advisorStopLoss").value || "6",
     targetGainPercent: document.querySelector("#advisorTarget").value || "12",
     kellyFractionPercent: document.querySelector("#advisorKellyFraction").value || "25",
+  };
+}
+
+function readTrustedAdvisorDefaults() {
+  const riskDefaults = readAdvisorDefaults();
+  let profile = null;
+
+  try {
+    profile = JSON.parse(localStorage.getItem(storageKeys.advisorProfile) || "null");
+  } catch {
+    profile = null;
+  }
+
+  return {
+    accountValue: profile?.accountValue || "",
+    cashAvailable: profile?.cashAvailable || "",
+    currentShares: profile?.currentShares || "0",
+    plannedBudget: profile?.plannedBudget || "",
+    maxRiskPercent: riskDefaults.maxRiskPercent,
+    winProbability: riskDefaults.winProbability,
+    upsidePercent: riskDefaults.upsidePercent,
+    downsidePercent: riskDefaults.downsidePercent,
+    stopLossPercent: riskDefaults.stopLossPercent,
+    targetGainPercent: riskDefaults.targetGainPercent,
+    kellyFractionPercent: riskDefaults.kellyFractionPercent,
+    side: riskDefaults.side,
+    horizon: riskDefaults.horizon,
   };
 }
 

@@ -63,4 +63,28 @@ assert.equal(badReport.decision.kind, "avoid");
 assert.equal(badReport.sizing.suggestedShares, 0);
 assert.equal(badReport.strategy.primaryId, "no-trade-wait");
 
+const impulseReport = analyzeAdvisorTrade(
+  {
+    symbol: "TSLA",
+    accountValue: 10000,
+    cashAvailable: 1000,
+    plannedBudget: 8000,
+    currentPrice: 100,
+    maxRiskPercent: 1,
+    winProbability: 55,
+    upsidePercent: 12,
+    downsidePercent: 8,
+    stopLossPercent: 6,
+    targetGainPercent: 12,
+    kellyFractionPercent: 25,
+    thesis: "I want to go all in with margin because everyone is buying it.",
+  },
+  { ...market, symbol: "TSLA", latestClose: 100, annualizedVolatility: 0.7 },
+);
+
+const impulseFlagTitles = impulseReport.flags.map((flag) => flag.title);
+assert.ok(impulseFlagTitles.includes("Impulse language"));
+assert.ok(impulseFlagTitles.includes("Oversized request"));
+assert.ok(impulseFlagTitles.includes("Cash cap"));
+
 console.log("advisor-engine tests passed");

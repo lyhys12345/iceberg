@@ -6,8 +6,8 @@
   "description": "AI pre-trade risk layer for retail investors.",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node tests/risk-engine.test.mjs && node tests/advisor-engine.test.mjs && node tests/market-data.test.mjs && node tests/ai-risk-layer.test.mjs && node tests/conversation-agent.test.mjs && node tests/openai-risk-agent.test.mjs && node tests/gemini-risk-agent.test.mjs && node tests/ai-provider.test.mjs",
-    "check": "node --check src/app.mjs && node --check src/advisor-engine.mjs && node --check src/market-data.mjs && node --check src/ai-risk-layer.mjs && node --check src/conversation-agent.mjs && node --check src/openai-risk-agent.mjs && node --check src/gemini-risk-agent.mjs && node --check src/ai-provider.mjs && node --check server.mjs"
+    "test": "node tests/risk-engine.test.mjs && node tests/advisor-engine.test.mjs && node tests/market-data.test.mjs && node tests/ai-risk-layer.test.mjs && node tests/conversation-agent.test.mjs && node tests/persona-regression.test.mjs && node tests/openai-risk-agent.test.mjs && node tests/gemini-risk-agent.test.mjs && node tests/ai-provider.test.mjs",
+    "check": "node --check src/app.mjs && node --check src/advisor-engine.mjs && node --check src/market-data.mjs && node --check src/ai-risk-layer.mjs && node --check src/conversation-agent.mjs && node --check src/strategy-catalog.mjs && node --check src/openai-risk-agent.mjs && node --check src/gemini-risk-agent.mjs && node --check src/ai-provider.mjs && node --check server.mjs"
   },
   "engines": {
     "node": ">=20"

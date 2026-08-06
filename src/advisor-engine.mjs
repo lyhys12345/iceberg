@@ -13,10 +13,15 @@ export function analyzeAdvisorTrade(input, market) {
   const kellyDollarCap = trade.accountValue * kelly.fractionalKelly;
   const maxSharesByKelly = Math.floor(kellyDollarCap / trade.currentPrice);
   const requestedShares = plannedShares > 0 ? plannedShares : maxSharesByCash;
-  const suggestedShares =
+  const unverifiedEdge = hasUnverifiedEdge(trade);
+  let suggestedShares =
     kelly.fractionalKelly > 0
       ? Math.max(0, Math.min(requestedShares, maxSharesByRisk, maxSharesByCash, maxSharesByKelly))
       : 0;
+  if (unverifiedEdge) {
+    const starterCapShares = Math.floor((trade.accountValue * 0.05) / trade.currentPrice);
+    suggestedShares = Math.min(suggestedShares, starterCapShares);
+  }
   const suggestedDollars = suggestedShares * trade.currentPrice;
   const futurePositionDollars = trade.currentShares * trade.currentPrice + suggestedDollars;
   const futurePositionPercent = trade.accountValue > 0 ? futurePositionDollars / trade.accountValue : 0;
@@ -125,9 +130,15 @@ function normalizeAdvisorInput(input, market) {
 
 function scoreRisk(trade, market, kelly, futurePositionPercent) {
   let score = 25;
+  const plannedExposure = trade.accountValue > 0 ? trade.plannedBudget / trade.accountValue : 0;
 
   if (kelly.edge <= 0) score += 30;
   if (kelly.fractionalKelly < 0.01) score += 18;
+  if (plannedExposure > 0.5) score += 18;
+  if (plannedExposure > 0.25) score += 10;
+  if (trade.plannedBudget > trade.cashAvailable) score += 8;
+  if (hasImpulseLanguage(trade.thesis)) score += 12;
+  if (hasUnverifiedEdge(trade)) score += 18;
   if (futurePositionPercent > 0.25) score += 24;
   if (futurePositionPercent > 0.15) score += 12;
   if (market.annualizedVolatility > 0.65) score += 18;
@@ -214,13 +225,19 @@ function buildProtectionPlan(trade, market, shares, stopLossPrice, targetPrice) 
 
 function buildRiskFlags(trade, market, kelly, futurePositionPercent, suggestedShares) {
   const flags = [];
+  const plannedExposure = trade.accountValue > 0 ? trade.plannedBudget / trade.accountValue : 0;
 
   if (kelly.edge <= 0) flags.push({ title: "Negative edge assumption", detail: "Your win rate and payoff assumptions do not support the trade." });
+  if (hasUnverifiedEdge(trade)) flags.push({ title: "Unverified edge", detail: "The win-rate or upside assumptions are aggressive, but the thesis does not prove a repeatable edge." });
+  if (hasImpulseLanguage(trade.thesis)) flags.push({ title: "Impulse language", detail: "The thesis sounds emotional, such as all-in, revenge, borrowed money, or fear of missing out." });
+  if (plannedExposure > 0.25) flags.push({ title: "Oversized request", detail: "The requested order is large relative to the account; Iceberg will use a smaller protected size." });
+  if (trade.plannedBudget > trade.cashAvailable) flags.push({ title: "Cash cap", detail: "The planned order is larger than available cash, so cash availability must cap the trade." });
   if (market.return20d > 0.18) flags.push({ title: "Chasing risk", detail: "The stock has already moved sharply over the last month." });
   if (market.isStale) flags.push({ title: "Stale market data", detail: "Confirm the current price before using this sizing estimate." });
   if (market.return5d > 0.1) flags.push({ title: "Hot short-term move", detail: "Recent price action may increase FOMO risk." });
   if (market.annualizedVolatility > 0.55) flags.push({ title: "High volatility", detail: "Position size should be reduced because price swings are elevated." });
   if (futurePositionPercent > 0.2) flags.push({ title: "Concentration risk", detail: "This would create a large single-name exposure." });
+  if (hasOptionsProtectionMismatch(trade)) flags.push({ title: "Options mismatch", detail: "Options protection is advanced and usually maps to 100-share contracts; use a protective stop unless the contract mechanics are clear." });
   if (suggestedShares <= 0) flags.push({ title: "No safe size", detail: "Cash, risk cap, and Kelly sizing do not leave room for the planned trade." });
 
   if (flags.length === 0) {
@@ -228,6 +245,57 @@ function buildRiskFlags(trade, market, kelly, futurePositionPercent, suggestedSh
   }
 
   return flags;
+}
+
+function hasUnverifiedEdge(trade) {
+  const thesis = String(trade.thesis || "").toLowerCase();
+  const aggressiveAssumption = trade.winProbability >= 75 || trade.upsidePercent / Math.max(trade.downsidePercent, 0.1) >= 4 || trade.kellyFractionPercent > 50;
+  const hasRiskPlan = ["stop", "exit", "invalidation", "target", "risk", "止损", "退出", "目标"].some((term) => thesis.includes(term));
+  const hasThinThesis = thesis.length < 70;
+  return aggressiveAssumption && (hasThinThesis || !hasRiskPlan);
+}
+
+function hasOptionsProtectionMismatch(trade) {
+  const thesis = String(trade.thesis || "").toLowerCase();
+  const asksOptionsProtection = ["option", "put", "collar", "期权", "保护性看跌"].some((term) => thesis.includes(term));
+  return asksOptionsProtection && trade.currentShares < 100;
+}
+
+function hasImpulseLanguage(thesis) {
+  const text = String(thesis || "").toLowerCase();
+  const terms = [
+    "all in",
+    "all-in",
+    "yolo",
+    "everyone",
+    "can't miss",
+    "cant miss",
+    "borrow",
+    "loan",
+    "margin",
+    "leverage",
+    "double down",
+    "make back",
+    "recover",
+    "fomo",
+    "moon",
+    "梭哈",
+    "满仓",
+    "借钱",
+    "融资",
+    "杠杆",
+    "回本",
+    "翻倍",
+    "梭哈",
+    "满仓",
+    "借钱",
+    "融资",
+    "杠杆",
+    "回本",
+    "翻倍",
+  ];
+
+  return terms.some((term) => text.includes(term));
 }
 
 function positive(value) {

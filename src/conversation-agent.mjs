@@ -3,9 +3,10 @@ export function parseBeginnerTradeMessage(message, defaults = {}) {
   const normalized = text.replaceAll(",", "");
   const lower = normalized.toLowerCase();
   const symbol = extractSymbol(normalized);
-  const accountValue = findAmountAfter(normalized, ["account", "portfolio", "账户", "本金", "资金"]) || defaults.accountValue || "";
-  const plannedBudget = findAmountAfter(normalized, ["plan to buy", "planning to buy", "want to buy", "spend", "budget", "准备买", "准备", "投入", "计划"]) || defaults.plannedBudget || "";
-  const currentPrice = findAmountAfter(normalized, ["current price", "price", "at", "股价", "价格"]) || "";
+  const accountValue = findFieldAmount(normalized, ["account", "portfolio", "账户", "本金", "资金"]) || defaults.accountValue || "";
+  const cashAvailable = findFieldAmount(normalized, ["available cash", "cash available", "cash", "现金", "可用资金", "可用现金"]) || defaults.cashAvailable || accountValue || "";
+  const plannedBudget = findPlannedAmount(normalized) || defaults.plannedBudget || "";
+  const currentPrice = findFieldAmount(normalized, ["current price", "latest price", "stock price", "price", "现在股价", "股价", "价格"]) || "";
   const horizon = lower.includes("day") || lower.includes("日内") ? "day" : lower.includes("long") || lower.includes("长期") ? "long" : defaults.horizon || "swing";
   const side = lower.includes("sell") || lower.includes("卖") ? "sell" : "buy";
 
@@ -15,7 +16,7 @@ export function parseBeginnerTradeMessage(message, defaults = {}) {
     horizon,
     currentPrice,
     accountValue,
-    cashAvailable: defaults.cashAvailable || accountValue || "",
+    cashAvailable,
     currentShares: defaults.currentShares || "0",
     plannedBudget,
     maxRiskPercent: defaults.maxRiskPercent || "1",
@@ -89,13 +90,41 @@ function extractSymbol(text) {
   return candidate || "";
 }
 
-function findAmountAfter(text, phrases) {
+function findFieldAmount(text, phrases) {
   for (const phrase of phrases) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(`${escaped}[^\\d$]{0,30}(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|万))?`, "i");
+    const pattern = new RegExp(`${escaped}\\s*(?:is|=|:|：|为|是)?\\s*(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|万))?`, "i");
     const match = text.match(pattern);
     if (match) return String(scaleAmount(match[1], match[2]));
   }
+
+  return "";
+}
+
+function findPlannedAmount(text) {
+  const phrases = [
+    "plan to buy",
+    "planning to buy",
+    "want to buy",
+    "buy",
+    "spend",
+    "budget",
+    "准备买",
+    "打算买",
+    "买入",
+    "投入",
+    "计划",
+  ];
+
+  for (const phrase of phrases) {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`${escaped}\\s*(?:another|about|around|roughly|approximately|up to|大概|大约|约)?\\s*(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|万))?`, "i");
+    const match = text.match(pattern);
+    if (match) return String(scaleAmount(match[1], match[2]));
+  }
+
+  const withAmount = text.match(/\b(?:with|for)\s*(?:\$|usd\s*)?(\d+(?:\.\d+)?)(?:\s*(k|m))?\s*(?:dollars|usd)\b/i);
+  if (withAmount) return String(scaleAmount(withAmount[1], withAmount[2]));
 
   return "";
 }

@@ -19,6 +19,9 @@ const missing = parseBeginnerTradeMessage("Thinking about buying AAPL with 1000 
 assert.ok(beginnerMissingFields(missing).includes("account value"));
 assert.ok(beginnerMissingFields(missing).includes("current price"));
 
+const vague = parseBeginnerTradeMessage("I want to buy DRAM ETF, is now a good time to trade?");
+assert.deepEqual(beginnerMissingFields(vague), ["account value", "planned amount", "current price"]);
+
 const searchFailedQuestion = beginnerQuestion(["account value", "planned amount", "current price"], {
   marketSearchFailed: true,
   symbol: "DRAM",

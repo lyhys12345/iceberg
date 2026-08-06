@@ -1,8 +1,38 @@
-const urgencyTerms = ["now", "today", "can't miss", "cant miss", "everyone", "viral", "breakout", "miss out", "moon", "recover"];
-const planTerms = ["stop", "invalidation", "exit", "risk", "size", "target", "thesis", "because"];
+const urgencyTerms = [
+  "now",
+  "today",
+  "can't miss",
+  "cant miss",
+  "everyone",
+  "viral",
+  "breakout",
+  "miss out",
+  "moon",
+  "recover",
+  "all in",
+  "all-in",
+  "yolo",
+  "borrow",
+  "loan",
+  "margin",
+  "leverage",
+  "double down",
+  "make back",
+  "fomo",
+  "梭哈",
+  "满仓",
+  "借钱",
+  "融资",
+  "杠杆",
+  "回本",
+  "翻倍",
+];
+
+const planTerms = ["stop", "invalidation", "exit", "risk", "size", "target", "thesis", "止损", "退出", "目标"];
 
 export function createAiRiskBrief(report) {
   const thesis = String(report.trade.thesis || "").toLowerCase();
+  const strategy = safeStrategy(report);
   const missingItems = [];
   const signals = [];
 
@@ -42,10 +72,10 @@ export function createAiRiskBrief(report) {
     confidence,
     missingItems,
     signals,
-    strategy: report.strategy,
-    strategyName: report.strategy.primaryName,
-    strategySteps: report.strategy.executionRules,
-    summary: buildSummary(report, pattern, missingItems),
+    strategy,
+    strategyName: strategy.primaryName,
+    strategySteps: strategy.executionRules,
+    summary: buildSummary(report, pattern, missingItems, strategy),
     reflectionPrompt: buildPrompt(report, missingItems),
   };
 }
@@ -66,16 +96,16 @@ function estimateConfidence(report, missingItems, signals) {
   return clamp(confidence, 0.35, 0.9);
 }
 
-function buildSummary(report, pattern, missingItems) {
+function buildSummary(report, pattern, missingItems, strategy) {
   if (report.decision.kind === "avoid") {
-    return `Use ${report.strategy.primaryName}: the plan should be avoided or rewritten before execution because the sizing model does not leave enough protected room.`;
+    return `Use ${strategy.primaryName}: the plan should be avoided or rewritten before execution because the sizing model does not leave enough protected room.`;
   }
 
   if (missingItems.length > 0) {
-    return `Use ${report.strategy.primaryName}: the trade can be reviewed, but the plan is missing ${missingItems.join(" and ")}.`;
+    return `Use ${strategy.primaryName}: the trade can be reviewed, but the plan is missing ${missingItems.join(" and ")}.`;
   }
 
-  return `Use ${report.strategy.primaryName}: the setup reads as ${pattern}; keep the stop and size fixed before placing the order.`;
+  return `Use ${strategy.primaryName}: the setup reads as ${pattern}; keep the stop and size fixed before placing the order.`;
 }
 
 function buildPrompt(report, missingItems) {
@@ -88,6 +118,21 @@ function buildPrompt(report, missingItems) {
   }
 
   return "If this trade drops to the stop price today, will you follow the plan without resizing?";
+}
+
+function safeStrategy(report) {
+  if (report.strategy?.primaryName) {
+    return {
+      ...report.strategy,
+      executionRules: Array.isArray(report.strategy.executionRules) ? report.strategy.executionRules : [],
+    };
+  }
+
+  return {
+    primaryId: "risk-review",
+    primaryName: report.decision?.kind === "avoid" ? "No Trade / Wait" : "Risk-Capped Position",
+    executionRules: [],
+  };
 }
 
 function clamp(value, min, max) {
