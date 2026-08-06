@@ -26,8 +26,16 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname.startsWith("/api/market/")) {
       const symbol = decodeURIComponent(url.pathname.replace("/api/market/", ""));
-      const snapshot = await fetchMarketSnapshot(symbol);
-      sendJson(response, 200, snapshot);
+      try {
+        const snapshot = await fetchMarketSnapshot(symbol);
+        sendJson(response, 200, snapshot);
+      } catch (error) {
+        sendJson(response, 200, {
+          symbol,
+          needsManualPrice: true,
+          error: error.message || "Market data unavailable.",
+        });
+      }
       return;
     }
 

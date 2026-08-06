@@ -7,9 +7,10 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
     throw new Error("Symbol is required.");
   }
 
-  const localSnapshot = await fetchLocalSnapshot(normalizedSymbol, fetchImpl);
-  if (localSnapshot) {
-    return localSnapshot;
+  if (typeof window !== "undefined") {
+    const localSnapshot = await fetchLocalSnapshot(normalizedSymbol, fetchImpl);
+    if (localSnapshot) return localSnapshot;
+    throw new Error("Market data unavailable. Enter current price manually.");
   }
 
   if (typeof window === "undefined" && process.env.ALPHA_VANTAGE_API_KEY) {
@@ -94,12 +95,11 @@ export function buildAlphaVantageSnapshot(symbol, data) {
 }
 
 async function fetchLocalSnapshot(symbol, fetchImpl) {
-  if (typeof window === "undefined") return null;
-
   try {
     const response = await fetchImpl(`/api/market/${encodeURIComponent(symbol)}`);
     if (!response.ok) return null;
-    return await response.json();
+    const data = await response.json();
+    return data && !data.needsManualPrice && data.latestClose ? data : null;
   } catch {
     return null;
   }

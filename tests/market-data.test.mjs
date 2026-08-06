@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildAlphaVantageSnapshot, buildMarketSnapshot, parseStooqCsv } from "../src/market-data.mjs";
+import { buildAlphaVantageSnapshot, buildMarketSnapshot, fetchMarketSnapshot, parseStooqCsv } from "../src/market-data.mjs";
 
 const csv = `Date,Open,High,Low,Close,Volume
 2026-01-01,100,102,99,101,1000
@@ -67,5 +67,18 @@ const alpha = buildAlphaVantageSnapshot("IBM", {
 assert.equal(alpha.symbol, "IBM");
 assert.equal(alpha.latestClose, 104);
 assert.equal(alpha.source, "Alpha Vantage daily prices");
+
+globalThis.window = {};
+await assert.rejects(
+  () =>
+    fetchMarketSnapshot("MSFT", async () => ({
+      ok: true,
+      async json() {
+        return { symbol: "MSFT", needsManualPrice: true };
+      },
+    })),
+  /Enter current price manually/,
+);
+delete globalThis.window;
 
 console.log("market-data tests passed");
