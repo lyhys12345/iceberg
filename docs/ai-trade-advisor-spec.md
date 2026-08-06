@@ -131,6 +131,22 @@ Added modules:
 
 The market data module attempts to fetch recent daily prices through the backend. If `ALPHA_VANTAGE_API_KEY` is configured, the server uses Alpha Vantage daily prices first. If that fails, it falls back to the no-key public provider. If all live requests fail, the UI can still run using the user's manually entered price.
 
-The advisor engine is deterministic and testable. Hard sizing and risk rules do not depend on AI. The OpenAI-backed risk brief is an explanation layer. If `OPENAI_API_KEY` is not configured or the request fails, the app keeps the local deterministic brief.
+The advisor engine is deterministic and testable. Hard sizing and risk rules do not depend on AI. The backend risk brief can use Gemini, OpenAI, or local fallback through `AI_PROVIDER`.
+
+Gemini is the recommended default for free MVP testing:
+
+```text
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-3.5-flash
+```
+
+OpenAI remains available:
+
+```text
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.6
+```
 
 API keys must stay on the backend. The frontend calls `/api/market/:symbol` and `/api/ai-risk-brief`.

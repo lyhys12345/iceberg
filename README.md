@@ -70,12 +70,15 @@ node server.mjs
 Copy `.env.example` to `.env` and set keys for real backend data:
 
 ```sh
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your_gemini_key
+GEMINI_MODEL=gemini-3.5-flash
 OPENAI_API_KEY=your_openai_key
 OPENAI_MODEL=gpt-5.6
 ALPHA_VANTAGE_API_KEY=your_alpha_vantage_key
 ```
 
-The frontend never stores API keys. It calls the local Node server, which calls market data and OpenAI from the backend.
+`AI_PROVIDER` can be `gemini`, `openai`, or `local`. Gemini is the recommended free-MVP default. The frontend never stores API keys. It calls the local Node server, which calls market data and AI providers from the backend.
 
 ## Development
 

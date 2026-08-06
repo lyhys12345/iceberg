@@ -2,8 +2,8 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateAiRiskBrief } from "./src/ai-provider.mjs";
 import { fetchMarketSnapshot } from "./src/market-data.mjs";
-import { generateOpenAiRiskBrief } from "./src/openai-risk-agent.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 await loadEnv();
@@ -33,7 +33,7 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/ai-risk-brief" && request.method === "POST") {
       const body = await readJson(request);
-      const brief = await generateOpenAiRiskBrief(body.report);
+      const brief = await generateAiRiskBrief(body.report);
       sendJson(response, 200, brief);
       return;
     }

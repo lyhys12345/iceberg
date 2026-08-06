@@ -370,6 +370,7 @@ async function hydrateAiRiskBrief(report) {
 }
 
 function renderAiBrief(aiBrief) {
+  const sourceLabel = aiBrief.source === "gemini" ? "Gemini" : aiBrief.source === "openai" ? "OpenAI" : "Local";
   elements.aiBrief.innerHTML = `
     <article class="ai-brief-card">
       <div>
@@ -377,7 +378,7 @@ function renderAiBrief(aiBrief) {
         <strong>${escapeHtml(aiBrief.pattern)}</strong>
       </div>
       <div>
-        <span class="eyebrow">${aiBrief.source === "openai" ? "OpenAI" : "Local"} confidence</span>
+        <span class="eyebrow">${sourceLabel} confidence</span>
         <strong>${formatPercent(aiBrief.confidence)}</strong>
       </div>
       <p>${escapeHtml(aiBrief.summary)}</p>

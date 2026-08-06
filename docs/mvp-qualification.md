@@ -31,7 +31,7 @@ The MVP does not need brokerage execution, paid accounts, or a live LLM to be us
 - JSON and CSV export.
 - Local user risk assumption persistence.
 - Adjustable Kelly fraction with conservative 25 percent default.
-- OpenAI-backed AI risk brief when `OPENAI_API_KEY` is configured, with local fallback.
+- Gemini or OpenAI-backed AI risk brief when provider keys are configured, with local fallback.
 - Clean first-run advisor state with explicit "Load example" behavior.
 - Lightweight first-run risk profile panel.
 - Browser smoke test coverage by manual Playwright check.
