@@ -3,6 +3,7 @@ import { analyzeAdvisorTrade } from "./advisor-engine.mjs";
 import { createAiRiskBrief } from "./ai-risk-layer.mjs";
 import { beginnerAdvice, beginnerMissingFields, beginnerQuestion, parseBeginnerTradeMessage } from "./conversation-agent.mjs";
 import { fetchMarketSnapshot, manualMarketSnapshot } from "./market-data.mjs";
+import { strategyCatalog } from "./strategy-catalog.mjs";
 
 const storageKeys = {
   rules: "iceberg.rules.v1",
@@ -58,6 +59,10 @@ const elements = {
   advisorStopRisk: document.querySelector("#advisorStopRisk"),
   advisorStopPrice: document.querySelector("#advisorStopPrice"),
   advisorExposure: document.querySelector("#advisorExposure"),
+  advisorStrategyName: document.querySelector("#advisorStrategyName"),
+  advisorStrategySummary: document.querySelector("#advisorStrategySummary"),
+  advisorStrategySteps: document.querySelector("#advisorStrategySteps"),
+  advisorStrategyStack: document.querySelector("#advisorStrategyStack"),
   advisorMarketTitle: document.querySelector("#advisorMarketTitle"),
   advisorMarketSource: document.querySelector("#advisorMarketSource"),
   market5d: document.querySelector("#market5d"),
@@ -80,6 +85,7 @@ const elements = {
   agentPrompt: document.querySelector("#agentPrompt"),
   agentConversation: document.querySelector("#agentConversation"),
   quickPrompts: document.querySelectorAll("[data-prompt]"),
+  strategyLibrary: document.querySelector("#strategyLibrary"),
 };
 
 init();
@@ -89,6 +95,7 @@ function init() {
   bindForms();
   loadRulesIntoForm();
   renderJournal();
+  renderStrategyLibrary();
   updateSummary();
   renderOnboarding();
   if (!loadAdvisorProfileIntoForm()) {
@@ -211,6 +218,7 @@ async function askBeginnerAgent(message) {
   appendAgentMessage("assistant", "Let me check the trade, size, and downside first...");
 
   const parsed = parseBeginnerTradeMessage(text, readAdvisorDefaults());
+  let marketSearchNote = "";
 
   if (parsed.symbol && !parsed.currentPrice) {
     try {
@@ -218,16 +226,18 @@ async function askBeginnerAgent(message) {
       parsed.currentPrice = String(snapshot.latestClose);
       state.marketSnapshot = snapshot;
       renderMarketSnapshot(snapshot);
-    } catch {
+    } catch (error) {
       state.marketSnapshot = null;
+      marketSearchNote = `${marketSearchFailureMessage(parsed.symbol, error)} `;
     }
   }
 
+  const searchFailed = Boolean(marketSearchNote);
   const missing = beginnerMissingFields(parsed);
   fillAdvisorForm(parsed);
 
   if (missing.length > 0) {
-    replaceLastAssistantMessage(beginnerQuestion(missing));
+    replaceLastAssistantMessage(`${marketSearchNote}${beginnerQuestion(missing, { marketSearchFailed: searchFailed, symbol: parsed.symbol })}`);
     return;
   }
 
@@ -256,6 +266,14 @@ function replaceLastAssistantMessage(text) {
   } else {
     appendAgentMessage("assistant", text);
   }
+}
+
+function marketSearchFailureMessage(symbol, error) {
+  const message = String(error?.message || "");
+  if (message.includes("127.0.0.1")) {
+    return "I can search for that, but this page is opened as a local file. Open http://127.0.0.1:5173/ so Iceberg can call the backend agent and market APIs.";
+  }
+  return `I searched recent market data for ${symbol}, but could not get a reliable live price from the connected data providers.`;
 }
 
 function generateAdvisorPlan() {
@@ -301,6 +319,7 @@ function renderAdvisorReport(report) {
   const { decision, riskScore, sizing, kelly, scenarios, protection, entries, flags, market } = report;
   const aiBrief = createAiRiskBrief(report);
 
+  document.body.classList.add("has-advisor-report");
   elements.advisorRiskScore.textContent = riskScore;
   elements.advisorRiskScore.dataset.level = decision.kind;
   elements.advisorDecisionTitle.textContent = decision.title;
@@ -316,6 +335,7 @@ function renderAdvisorReport(report) {
   elements.skipAdvisorTrade.disabled = false;
 
   renderMarketSnapshot(market);
+  renderTradeStrategy(report.strategy);
 
   elements.scenarioList.innerHTML = [
     scenarioItem("Bull", scenarios.bull.price, scenarios.bull.pnl),
@@ -371,6 +391,8 @@ async function hydrateAiRiskBrief(report) {
 
 function renderAiBrief(aiBrief) {
   const sourceLabel = aiBrief.source === "gemini" ? "Gemini" : aiBrief.source === "openai" ? "OpenAI" : "Local";
+  const strategyName = aiBrief.strategyName || aiBrief.strategy?.primaryName || "";
+  const strategySteps = Array.isArray(aiBrief.strategySteps) ? aiBrief.strategySteps : aiBrief.strategy?.executionRules || [];
   elements.aiBrief.innerHTML = `
     <article class="ai-brief-card">
       <div>
@@ -381,10 +403,81 @@ function renderAiBrief(aiBrief) {
         <span class="eyebrow">${sourceLabel} confidence</span>
         <strong>${formatPercent(aiBrief.confidence)}</strong>
       </div>
+      ${
+        strategyName
+          ? `<div>
+              <span class="eyebrow">Strategy</span>
+              <strong>${escapeHtml(strategyName)}</strong>
+            </div>`
+          : ""
+      }
       <p>${escapeHtml(aiBrief.summary)}</p>
+      ${
+        strategySteps.length > 0
+          ? `<ul>${strategySteps.slice(0, 3).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ul>`
+          : ""
+      }
       <small>${escapeHtml(aiBrief.reflectionPrompt)}</small>
     </article>
   `;
+}
+
+function renderTradeStrategy(strategy) {
+  if (!strategy) return;
+
+  elements.advisorStrategyName.textContent = strategy.primaryName;
+  elements.advisorStrategySummary.textContent = strategy.rationale.join(" ");
+  elements.advisorStrategySteps.innerHTML = strategy.executionRules
+    .map(
+      (step) => `
+        <article class="strategy-step">
+          <span>${escapeHtml(step)}</span>
+        </article>
+      `,
+    )
+    .join("");
+  elements.advisorStrategyStack.innerHTML = strategy.stack
+    .map((item) => `<span class="strategy-chip">${escapeHtml(item.name)}</span>`)
+    .join("");
+}
+
+function renderStrategyLibrary() {
+  if (!elements.strategyLibrary) return;
+
+  elements.strategyLibrary.innerHTML = strategyCatalog
+    .map(
+      (strategy) => `
+        <article class="strategy-card" data-level="${escapeHtml(strategy.level)}">
+          <div class="strategy-card-head">
+            <div>
+              <span class="eyebrow">${escapeHtml(strategy.level)}</span>
+              <h3>${escapeHtml(strategy.name)}</h3>
+            </div>
+            <span class="pill">${escapeHtml(strategy.goal)}</span>
+          </div>
+          <div class="strategy-detail-grid">
+            <div>
+              <strong>Best for</strong>
+              <p>${escapeHtml(strategy.bestFor)}</p>
+            </div>
+            <div>
+              <strong>Avoid when</strong>
+              <p>${escapeHtml(strategy.avoidWhen)}</p>
+            </div>
+          </div>
+          <p class="strategy-how">${escapeHtml(strategy.howItWorks)}</p>
+          ${strategy.formula ? `<p class="strategy-formula">${escapeHtml(strategy.formula)}</p>` : ""}
+          <div class="strategy-playbook">
+            ${strategy.steps.map((step, index) => `<div><b>${index + 1}</b><span>${escapeHtml(step)}</span></div>`).join("")}
+          </div>
+          <div class="strategy-output">
+            <strong>Output</strong>
+            <span>${escapeHtml(strategy.output)}</span>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
 }
 
 function renderMarketSnapshot(snapshot) {
@@ -834,6 +927,7 @@ function seedAdvisorDefaults() {
 
 function resetAdvisorReport() {
   state.latestAdvisorReport = null;
+  document.body.classList.remove("has-advisor-report");
   elements.advisorRiskScore.textContent = "--";
   elements.advisorRiskScore.removeAttribute("data-level");
   elements.advisorDecisionTitle.textContent = "Waiting for ticker";
@@ -845,6 +939,10 @@ function resetAdvisorReport() {
   elements.advisorStopRisk.textContent = "--";
   elements.advisorStopPrice.textContent = "stop --";
   elements.advisorExposure.textContent = "--";
+  elements.advisorStrategyName.textContent = "Waiting for strategy";
+  elements.advisorStrategySummary.textContent = "Iceberg will choose a strategy after it sees the ticker, account, planned amount, and risk profile.";
+  elements.advisorStrategySteps.innerHTML = "";
+  elements.advisorStrategyStack.innerHTML = "";
   elements.saveAdvisorPlan.disabled = true;
   elements.skipAdvisorTrade.disabled = true;
   elements.scenarioList.innerHTML = "";

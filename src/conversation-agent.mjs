@@ -43,19 +43,20 @@ export function beginnerAdvice(report) {
   const stop = money(report.scenarios.stop.price);
   const stopLoss = money(Math.abs(report.scenarios.stop.pnl));
   const exposure = `${(report.sizing.futurePositionPercent * 100).toFixed(1)}%`;
+  const strategy = report.strategy?.primaryName ? `Strategy: ${report.strategy.primaryName}. ` : "";
 
   if (report.decision.kind === "avoid") {
-    return `I would not rush this trade. Under your inputs, Iceberg cannot find a protected size. The safer move is to wait, rewrite the plan, or reduce the amount until the stop-loss risk fits your account.`;
+    return `${strategy}I would not rush this trade. Under your inputs, Iceberg cannot find a protected size. The safer move is to wait, rewrite the plan, or reduce the amount until the stop-loss risk fits your account.`;
   }
 
   if (report.decision.kind === "reduce") {
-    return `This may be tradable only at a small size. A beginner-friendly cap is about ${size}, with a protective stop near ${stop}. If that stop hits, the estimated loss is about ${stopLoss}.`;
+    return `${strategy}This may be tradable only at a small size. A beginner-friendly cap is about ${size}, with a protective stop near ${stop}. If that stop hits, the estimated loss is about ${stopLoss}.`;
   }
 
-  return `This looks acceptable only if you follow the protection plan. Keep the trade around ${size}, set the stop near ${stop}, and keep total exposure around ${exposure}.`;
+  return `${strategy}This looks acceptable only if you follow the protection plan. Keep the trade around ${size}, set the stop near ${stop}, and keep total exposure around ${exposure}.`;
 }
 
-export function beginnerQuestion(missingFields) {
+export function beginnerQuestion(missingFields, context = {}) {
   if (missingFields.length === 0) return "";
 
   const labels = {
@@ -65,7 +66,17 @@ export function beginnerQuestion(missingFields) {
     "current price": "the current stock price",
   };
 
-  return `I need ${missingFields.map((field) => labels[field]).join(", ")} before I can estimate the trade.`;
+  const userFields = context.marketSearchFailed ? missingFields.filter((field) => field !== "current price") : missingFields;
+  const priceFallback =
+    context.marketSearchFailed && missingFields.includes("current price")
+      ? ` I already tried to resolve ${context.symbol || "the ticker"} from market data providers; if they are unavailable, paste the latest price once and I can continue.`
+      : "";
+
+  if (userFields.length === 0) {
+    return priceFallback.trim();
+  }
+
+  return `I still need ${userFields.map((field) => labels[field]).join(", ")} before I can estimate your position size and protection.${priceFallback}`;
 }
 
 function extractSymbol(text) {

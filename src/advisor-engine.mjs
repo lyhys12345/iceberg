@@ -1,3 +1,5 @@
+import { recommendTradeStrategy } from "./strategy-catalog.mjs";
+
 export function analyzeAdvisorTrade(input, market) {
   const trade = normalizeAdvisorInput(input, market);
   const kelly = calculateKelly(trade.winProbability, trade.upsidePercent, trade.downsidePercent, trade.kellyFractionPercent);
@@ -26,6 +28,18 @@ export function analyzeAdvisorTrade(input, market) {
   const entries = buildEntryPlan(suggestedShares, trade.currentPrice);
   const protection = buildProtectionPlan(trade, market, suggestedShares, stopLossPrice, targetPrice);
   const flags = buildRiskFlags(trade, market, kelly, futurePositionPercent, suggestedShares);
+  const strategy = recommendTradeStrategy({
+    trade,
+    market,
+    decision,
+    riskScore,
+    sizing: {
+      suggestedShares,
+      suggestedDollars,
+      futurePositionPercent,
+    },
+    kelly,
+  });
 
   return {
     trade,
@@ -64,6 +78,7 @@ export function analyzeAdvisorTrade(input, market) {
     protection,
     entries,
     flags,
+    strategy,
   };
 }
 

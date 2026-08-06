@@ -1,4 +1,5 @@
 const STOOQ_BASE_URL = "https://stooq.com/q/d/l/";
+const YAHOO_CHART_BASE_URL = "https://query1.finance.yahoo.com/v8/finance/chart/";
 
 export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
   const normalizedSymbol = normalizeSymbol(symbol);
@@ -8,6 +9,9 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
   }
 
   if (typeof window !== "undefined") {
+    if (window.location?.protocol === "file:") {
+      throw new Error("Open http://127.0.0.1:5173/ so Iceberg can call the backend agent and market APIs.");
+    }
     const localSnapshot = await fetchLocalSnapshot(normalizedSymbol, fetchImpl);
     if (localSnapshot) return localSnapshot;
     throw new Error("Market data unavailable. Enter current price manually.");
@@ -19,6 +23,20 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
     } catch {
       // Fall through to the public no-key provider.
     }
+  }
+
+  if (typeof window === "undefined" && process.env.OPENAI_API_KEY) {
+    try {
+      return await fetchOpenAiMarketSnapshot(normalizedSymbol, fetchImpl);
+    } catch {
+      // Fall through to no-key market data providers.
+    }
+  }
+
+  try {
+    return await fetchYahooChartSnapshot(normalizedSymbol, fetchImpl);
+  } catch {
+    // Fall through to Stooq. Yahoo covers many ETFs, while Stooq is a no-key backup.
   }
 
   const url = buildStooqUrl(normalizedSymbol);
@@ -55,6 +73,122 @@ export async function fetchMarketSnapshot(symbol, fetchImpl = fetch) {
   }
 
   return buildMarketSnapshot(normalizedSymbol, candles, source);
+}
+
+export async function fetchOpenAiMarketSnapshot(symbol, fetchImpl = fetch) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  const model = process.env.OPENAI_SEARCH_MODEL || process.env.OPENAI_MODEL || "gpt-5-mini";
+  const response = await fetchImpl("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      tools: [{ type: "web_search" }],
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "You are a market data resolver for Iceberg. Search the web for the most recent reliable quote for the requested US-listed stock or ETF ticker. Return JSON only. Do not give investment advice.",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `Find the latest available USD quote for ticker ${normalizedSymbol}. Return JSON with symbol, latestPrice, asOf, sourceName, sourceUrl, and notes. Use reliable quote pages such as exchange, issuer, Yahoo Finance, Nasdaq, or StockAnalysis.`,
+            },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI market search failed with ${response.status}.`);
+  }
+
+  const data = await response.json();
+  return buildOpenAiMarketSnapshot(normalizedSymbol, data);
+}
+
+export function buildOpenAiMarketSnapshot(symbol, data) {
+  const parsed = parseJsonFromText(readOpenAiOutputText(data));
+  const latestClose = toNumber(parsed.latestPrice);
+
+  if (latestClose <= 0) {
+    throw new Error("OpenAI market search did not return a usable price.");
+  }
+
+  const snapshot = manualMarketSnapshot(parsed.symbol || symbol, latestClose, 0.55);
+  snapshot.source = parsed.sourceName ? `OpenAI web search: ${parsed.sourceName}` : "OpenAI web search";
+  snapshot.asOf = normalizeAsOf(parsed.asOf) || snapshot.asOf;
+  snapshot.isStale = isStale(snapshot.asOf);
+  snapshot.search = {
+    sourceName: String(parsed.sourceName || ""),
+    sourceUrl: String(parsed.sourceUrl || ""),
+    notes: String(parsed.notes || ""),
+  };
+  return snapshot;
+}
+
+export async function fetchYahooChartSnapshot(symbol, fetchImpl = fetch) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  const params = new URLSearchParams({
+    range: "6mo",
+    interval: "1d",
+    includePrePost: "false",
+  });
+  const response = await fetchImpl(`${YAHOO_CHART_BASE_URL}${encodeURIComponent(normalizedSymbol)}?${params.toString()}`, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "Iceberg/0.1 pre-trade-risk-layer",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Yahoo chart request failed with ${response.status}.`);
+  }
+
+  const data = await response.json();
+  return buildYahooChartSnapshot(normalizedSymbol, data);
+}
+
+export function buildYahooChartSnapshot(symbol, data) {
+  const result = data?.chart?.result?.[0];
+  const error = data?.chart?.error;
+
+  if (!result) {
+    throw new Error(error?.description || "Yahoo chart returned no result.");
+  }
+
+  const timestamps = result.timestamp || [];
+  const quote = result.indicators?.quote?.[0] || {};
+  const close = result.indicators?.adjclose?.[0]?.adjclose || quote.close || [];
+  const candles = timestamps
+    .map((timestamp, index) => ({
+      date: new Date(timestamp * 1000).toISOString().slice(0, 10),
+      open: toNumber(quote.open?.[index]),
+      high: toNumber(quote.high?.[index]),
+      low: toNumber(quote.low?.[index]),
+      close: toNumber(close[index]),
+      volume: toNumber(quote.volume?.[index]),
+    }))
+    .filter((candle) => candle.date && candle.close > 0);
+
+  if (candles.length < 30) {
+    throw new Error("Yahoo chart returned too little market history.");
+  }
+
+  const metaSymbol = result.meta?.symbol || symbol;
+  return buildMarketSnapshot(metaSymbol, candles, "Yahoo Finance chart search");
 }
 
 export async function fetchAlphaVantageSnapshot(symbol, apiKey, fetchImpl = fetch) {
@@ -251,6 +385,43 @@ function isStale(dateText) {
 
   const ageMs = Date.now() - date.getTime();
   return ageMs > 5 * 24 * 60 * 60 * 1000;
+}
+
+function readOpenAiOutputText(data) {
+  const outputText =
+    data.output_text ||
+    data.output
+      ?.flatMap((item) => item.content || [])
+      ?.map((content) => content.text)
+      ?.filter(Boolean)
+      ?.join("");
+
+  if (!outputText) {
+    throw new Error("OpenAI market search returned no text.");
+  }
+
+  return outputText;
+}
+
+function parseJsonFromText(text) {
+  const trimmed = String(text || "").trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced?.[1] || trimmed;
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+
+  if (start < 0 || end < start) {
+    throw new Error("Market search response did not include JSON.");
+  }
+
+  return JSON.parse(candidate.slice(start, end + 1));
+}
+
+function normalizeAsOf(value) {
+  const text = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const date = new Date(text);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 }
 
 function formatDate(date) {

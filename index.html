@@ -23,6 +23,7 @@
 
         <nav class="nav-tabs" aria-label="Primary">
           <button class="nav-tab active" data-tab="advisor" type="button">Ask</button>
+          <button class="nav-tab" data-tab="strategies" type="button">Strategies</button>
           <button class="nav-tab" data-tab="journal" type="button">History</button>
           <button class="nav-tab" data-tab="rules" type="button">Settings</button>
           <button class="nav-tab" data-tab="check" type="button">Classic</button>
@@ -48,8 +49,8 @@
         <section class="topbar">
           <div class="topbar-copy">
             <p class="eyebrow">AI pre-trade risk layer</p>
-            <h2>Trade slower. Size smarter.</h2>
-            <p class="topbar-subtitle">A calm risk layer between impulse and execution.</p>
+            <h2>Iceberg Risk Desk</h2>
+            <p class="topbar-subtitle">A conversation-first risk check before you place the trade.</p>
           </div>
           <div class="topbar-actions">
             <span class="system-chip">Risk-first</span>
@@ -241,6 +242,19 @@
                 </article>
               </section>
 
+              <section class="panel strategy-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Recommended Strategy</p>
+                    <h3 id="advisorStrategyName">Waiting for strategy</h3>
+                  </div>
+                  <span class="pill">playbook driven</span>
+                </div>
+                <p id="advisorStrategySummary" class="strategy-summary">Iceberg will choose a strategy after it sees the ticker, account, planned amount, and risk profile.</p>
+                <div id="advisorStrategyStack" class="strategy-stack"></div>
+                <div id="advisorStrategySteps" class="strategy-steps"></div>
+              </section>
+
               <section class="panel market-panel">
                 <div class="panel-heading">
                   <div>
@@ -292,6 +306,18 @@
               </section>
             </section>
           </div>
+        </section>
+
+        <section id="strategiesTab" class="tab-panel">
+          <section class="panel strategy-hero">
+            <div>
+              <p class="eyebrow">Strategy Playbook</p>
+              <h3>How Iceberg turns a trade idea into an execution plan</h3>
+              <p>Each AI recommendation uses one primary strategy plus supporting rules for sizing, entries, protection, and concentration control.</p>
+            </div>
+            <span class="pill">Beginner first</span>
+          </section>
+          <section id="strategyLibrary" class="strategy-library" aria-label="Iceberg strategy catalog"></section>
         </section>
 
         <section id="checkTab" class="tab-panel">

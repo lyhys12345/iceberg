@@ -3,12 +3,14 @@ import { createAiRiskBrief } from "./ai-risk-layer.mjs";
 const riskBriefSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["pattern", "confidence", "missingItems", "signals", "summary", "reflectionPrompt"],
+  required: ["pattern", "confidence", "missingItems", "signals", "strategyName", "strategySteps", "summary", "reflectionPrompt"],
   properties: {
     pattern: { type: "string" },
     confidence: { type: "number", minimum: 0, maximum: 1 },
     missingItems: { type: "array", items: { type: "string" } },
     signals: { type: "array", items: { type: "string" } },
+    strategyName: { type: "string" },
+    strategySteps: { type: "array", items: { type: "string" } },
     summary: { type: "string" },
     reflectionPrompt: { type: "string" },
   },
@@ -30,9 +32,9 @@ export async function generateGeminiRiskBrief(report, fetchImpl = fetch) {
       model,
       input: [
         "You are Iceberg, a beginner-friendly pre-trade risk agent.",
-        "Analyze risk, sizing, downside, and protection in plain English.",
+        "Analyze risk, sizing, downside, protection, and the supplied strategy recommendation in plain English.",
         "Do not predict prices. Do not say a stock is a buy or sell.",
-        "Keep advice conservative and based only on the supplied report.",
+        "Keep advice conservative and based only on the supplied report. Use the supplied strategy unless the report clearly says no safe size.",
         JSON.stringify(summarizeReportForAi(report)),
       ].join("\n\n"),
       response_format: {
@@ -80,6 +82,7 @@ function summarizeReportForAi(report) {
     sizing: report.sizing,
     scenarios: report.scenarios,
     flags: report.flags,
+    strategy: report.strategy,
   };
 }
 
@@ -89,6 +92,8 @@ function validateBrief(brief) {
     confidence: clamp(Number(brief.confidence) || 0.5, 0, 1),
     missingItems: asStringArray(brief.missingItems),
     signals: asStringArray(brief.signals),
+    strategyName: String(brief.strategyName || "Review strategy"),
+    strategySteps: asStringArray(brief.strategySteps),
     summary: String(brief.summary || "Review the risk plan before trading."),
     reflectionPrompt: String(brief.reflectionPrompt || "What would make this trade invalid?"),
   };

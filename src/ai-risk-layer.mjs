@@ -42,6 +42,9 @@ export function createAiRiskBrief(report) {
     confidence,
     missingItems,
     signals,
+    strategy: report.strategy,
+    strategyName: report.strategy.primaryName,
+    strategySteps: report.strategy.executionRules,
     summary: buildSummary(report, pattern, missingItems),
     reflectionPrompt: buildPrompt(report, missingItems),
   };
@@ -65,14 +68,14 @@ function estimateConfidence(report, missingItems, signals) {
 
 function buildSummary(report, pattern, missingItems) {
   if (report.decision.kind === "avoid") {
-    return "The plan should be avoided or rewritten before execution because the sizing model does not leave enough protected room.";
+    return `Use ${report.strategy.primaryName}: the plan should be avoided or rewritten before execution because the sizing model does not leave enough protected room.`;
   }
 
   if (missingItems.length > 0) {
-    return `The trade can be reviewed, but the plan is missing ${missingItems.join(" and ")}.`;
+    return `Use ${report.strategy.primaryName}: the trade can be reviewed, but the plan is missing ${missingItems.join(" and ")}.`;
   }
 
-  return `The setup reads as ${pattern}; keep the stop and size fixed before placing the order.`;
+  return `Use ${report.strategy.primaryName}: the setup reads as ${pattern}; keep the stop and size fixed before placing the order.`;
 }
 
 function buildPrompt(report, missingItems) {

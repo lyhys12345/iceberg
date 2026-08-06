@@ -41,6 +41,8 @@ const report = analyzeAdvisorTrade(
 assert.ok(["consider", "reduce"].includes(report.decision.kind));
 assert.ok(report.sizing.suggestedShares > 0);
 assert.ok(report.scenarios.stop.pnl < 0);
+assert.ok(report.strategy.primaryName);
+assert.ok(report.strategy.executionRules.length > 0);
 
 const badReport = analyzeAdvisorTrade(
   {
@@ -59,5 +61,6 @@ const badReport = analyzeAdvisorTrade(
 
 assert.equal(badReport.decision.kind, "avoid");
 assert.equal(badReport.sizing.suggestedShares, 0);
+assert.equal(badReport.strategy.primaryId, "no-trade-wait");
 
 console.log("advisor-engine tests passed");

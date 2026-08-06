@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { beginnerMissingFields, parseBeginnerTradeMessage } from "../src/conversation-agent.mjs";
+import { beginnerMissingFields, beginnerQuestion, parseBeginnerTradeMessage } from "../src/conversation-agent.mjs";
 
 const english = parseBeginnerTradeMessage("I want to buy NVDA. My account is $25000 and I plan to buy $1000. Current price is $120.");
 assert.equal(english.symbol, "NVDA");
@@ -18,5 +18,12 @@ assert.deepEqual(beginnerMissingFields(chinese), []);
 const missing = parseBeginnerTradeMessage("Thinking about buying AAPL with 1000 dollars.");
 assert.ok(beginnerMissingFields(missing).includes("account value"));
 assert.ok(beginnerMissingFields(missing).includes("current price"));
+
+const searchFailedQuestion = beginnerQuestion(["account value", "planned amount", "current price"], {
+  marketSearchFailed: true,
+  symbol: "DRAM",
+});
+assert.match(searchFailedQuestion, /I still need your account size, how much you plan to buy/);
+assert.match(searchFailedQuestion, /already tried to resolve DRAM/);
 
 console.log("conversation-agent tests passed");

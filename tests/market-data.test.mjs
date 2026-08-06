@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { buildAlphaVantageSnapshot, buildMarketSnapshot, fetchMarketSnapshot, parseStooqCsv } from "../src/market-data.mjs";
+import {
+  buildAlphaVantageSnapshot,
+  buildMarketSnapshot,
+  buildOpenAiMarketSnapshot,
+  buildYahooChartSnapshot,
+  fetchMarketSnapshot,
+  parseStooqCsv,
+} from "../src/market-data.mjs";
 
 const csv = `Date,Open,High,Low,Close,Volume
 2026-01-01,100,102,99,101,1000
@@ -68,7 +75,49 @@ assert.equal(alpha.symbol, "IBM");
 assert.equal(alpha.latestClose, 104);
 assert.equal(alpha.source, "Alpha Vantage daily prices");
 
-globalThis.window = {};
+const yahoo = buildYahooChartSnapshot("DRAM", {
+  chart: {
+    result: [
+      {
+        meta: { symbol: "DRAM" },
+        timestamp: Array.from({ length: 35 }, (_, index) => 1800000000 + index * 86400),
+        indicators: {
+          quote: [
+            {
+              open: Array.from({ length: 35 }, (_, index) => 20 + index),
+              high: Array.from({ length: 35 }, (_, index) => 21 + index),
+              low: Array.from({ length: 35 }, (_, index) => 19 + index),
+              close: Array.from({ length: 35 }, (_, index) => 20.5 + index),
+              volume: Array.from({ length: 35 }, () => 1000),
+            },
+          ],
+        },
+      },
+    ],
+  },
+});
+
+assert.equal(yahoo.symbol, "DRAM");
+assert.equal(yahoo.latestClose, 54.5);
+assert.equal(yahoo.source, "Yahoo Finance chart search");
+
+const searched = buildOpenAiMarketSnapshot("DRAM", {
+  output_text: JSON.stringify({
+    symbol: "DRAM",
+    latestPrice: 47.77,
+    asOf: "2026-07-28",
+    sourceName: "StockAnalysis",
+    sourceUrl: "https://stockanalysis.com/etf/dram/",
+    notes: "Delayed close quote.",
+  }),
+});
+
+assert.equal(searched.symbol, "DRAM");
+assert.equal(searched.latestClose, 47.77);
+assert.equal(searched.source, "OpenAI web search: StockAnalysis");
+assert.equal(searched.search.sourceUrl, "https://stockanalysis.com/etf/dram/");
+
+globalThis.window = { location: { protocol: "http:" } };
 await assert.rejects(
   () =>
     fetchMarketSnapshot("MSFT", async () => ({
@@ -79,6 +128,9 @@ await assert.rejects(
     })),
   /Enter current price manually/,
 );
+
+globalThis.window = { location: { protocol: "file:" } };
+await assert.rejects(() => fetchMarketSnapshot("MSFT"), /backend agent and market APIs/);
 delete globalThis.window;
 
 console.log("market-data tests passed");
