@@ -11,7 +11,7 @@ export class GeminiRequestError extends Error {
 }
 
 export async function callGeminiGenerateContent(
-  { prompt, apiKey = process.env.GEMINI_API_KEY, model = geminiModel(), generationConfig = {} },
+  { prompt, parts = [], apiKey = process.env.GEMINI_API_KEY, model = geminiModel(), generationConfig = {} },
   fetchImpl = fetch,
 ) {
   if (!apiKey) throw new GeminiRequestError("Gemini API key is missing.", { reason: "missing_api_key" });
@@ -26,7 +26,7 @@ export async function callGeminiGenerateContent(
       contents: [
         {
           role: "user",
-          parts: [{ text: String(prompt || "") }],
+          parts: [{ text: String(prompt || "") }, ...parts],
         },
       ],
       generationConfig,

@@ -2,6 +2,7 @@ import { generateAiRiskBrief, pickProvider } from "./src/ai-provider.mjs";
 import { callGeminiGenerateContent, explainGeminiNetworkError, geminiModel } from "./src/gemini-client.mjs";
 import { runIcebergAgent } from "./src/iceberg-agent.mjs";
 import { fetchMarketSnapshot } from "./src/market-data.mjs";
+import { parsePortfolioScreenshot } from "./src/portfolio-screenshot-agent.mjs";
 import { staticAssets } from "./server/static-assets.mjs";
 
 const mimeTypes = {
@@ -52,6 +53,17 @@ export default {
       if (url.pathname === "/api/agent-chat" && request.method === "POST") {
         const body = await request.json();
         return json(await runIcebergAgent(body, { fetchImpl: fetch }));
+      }
+
+      if (url.pathname === "/api/portfolio-screenshot" && request.method === "POST") {
+        const body = await request.json();
+        try {
+          return json(await parsePortfolioScreenshot(body, fetch));
+        } catch (error) {
+          const message = error.message || "Screenshot parsing failed.";
+          const status = /upload a png|unsupported screenshot/i.test(message) ? 400 : 500;
+          return json({ error: message }, status);
+        }
       }
 
       return serveStatic(url.pathname);

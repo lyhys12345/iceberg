@@ -17,6 +17,7 @@ const moduleFiles = [
   "market-data.mjs",
   "openai-risk-agent.mjs",
   "portfolio-advisor.mjs",
+  "portfolio-screenshot-agent.mjs",
   "risk-engine.mjs",
   "strategy-catalog.mjs",
   "agent-skills/ai-risk-brief.mjs",

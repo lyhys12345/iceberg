@@ -103,6 +103,8 @@ const elements = {
   portfolioCash: document.querySelector("#portfolioCash"),
   portfolioContribution: document.querySelector("#portfolioContribution"),
   portfolioHoldings: document.querySelector("#portfolioHoldings"),
+  portfolioScreenshot: document.querySelector("#portfolioScreenshot"),
+  portfolioImportStatus: document.querySelector("#portfolioImportStatus"),
   portfolioTotalValue: document.querySelector("#portfolioTotalValue"),
   portfolioRiskScore: document.querySelector("#portfolioRiskScore"),
   portfolioRiskLabel: document.querySelector("#portfolioRiskLabel"),
@@ -203,6 +205,9 @@ function bindForms() {
     fillPortfolioForm(demoPortfolio);
     renderPortfolioAnalysis();
   });
+  elements.portfolioScreenshot.addEventListener("change", async () => {
+    await importPortfolioScreenshot();
+  });
   elements.portfolioResearchButton.addEventListener("click", async () => {
     await researchPortfolioTicker();
   });
@@ -292,6 +297,67 @@ function loadPortfolio() {
 
 function savePortfolio(portfolio) {
   localStorage.setItem(storageKeys.portfolio, JSON.stringify(portfolio));
+}
+
+async function importPortfolioScreenshot() {
+  const file = elements.portfolioScreenshot.files?.[0];
+  if (!file) return;
+
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+    setPortfolioImportStatus("Use PNG, JPEG, or WebP.", "error");
+    elements.portfolioScreenshot.value = "";
+    return;
+  }
+
+  setPortfolioImportStatus("Reading screenshot...", "loading");
+
+  try {
+    const imageDataUrl = await readFileAsDataUrl(file);
+    setPortfolioImportStatus("Parsing with Gemini...", "loading");
+    const response = await fetch("/api/portfolio-screenshot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageDataUrl }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Screenshot parsing failed.");
+    if (!result.holdings?.length) throw new Error("No complete holdings found in the screenshot.");
+
+    applyImportedPortfolio(result);
+    const confidence = Math.round(Number(result.confidence || 0) * 100);
+    const warningText = result.warnings?.length ? ` ${result.warnings[0]}` : "";
+    setPortfolioImportStatus(`Imported ${result.holdings.length} holdings (${confidence}% confidence).${warningText}`, "ready");
+  } catch (error) {
+    setPortfolioImportStatus(error.message || "Could not parse screenshot.", "error");
+  } finally {
+    elements.portfolioScreenshot.value = "";
+  }
+}
+
+function applyImportedPortfolio(result) {
+  const current = readPortfolioForm();
+  const imported = {
+    ...current,
+    cash: result.cash || current.cash,
+    holdings: result.holdings,
+  };
+  fillPortfolioForm(imported);
+  renderPortfolioAnalysis();
+}
+
+function setPortfolioImportStatus(message, stateName = "ready") {
+  elements.portfolioImportStatus.textContent = message;
+  elements.portfolioImportStatus.dataset.state = stateName;
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(new Error("Could not read screenshot.")));
+    reader.readAsDataURL(file);
+  });
 }
 
 function renderPortfolioAnalysis() {

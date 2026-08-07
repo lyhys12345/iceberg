@@ -978,6 +978,56 @@ summary {
   line-height: 1.5;
 }
 
+.screenshot-import {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.file-import-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(101, 223, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(101, 223, 255, 0.08);
+  color: var(--ice-strong);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 560;
+  padding: 0 13px;
+}
+
+.file-import-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.import-status {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.import-status[data-state="loading"] {
+  color: var(--ice-strong);
+}
+
+.import-status[data-state="ready"] {
+  color: var(--green);
+}
+
+.import-status[data-state="error"] {
+  color: var(--red);
+}
+
 .research-dossier {
   display: grid;
   grid-template-columns: 0.4fr 1fr;
@@ -2574,6 +2624,10 @@ body:not(.has-advisor-report) .metric-card:nth-child(n + 3) {
   }
 
   .research-inline {
+    grid-template-columns: 1fr;
+  }
+
+  .screenshot-import {
     grid-template-columns: 1fr;
   }
 }
