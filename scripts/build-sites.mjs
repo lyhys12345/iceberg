@@ -33,10 +33,10 @@ const moduleFiles = [
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(join(dist, "server"), { recursive: true });
-await mkdir(join(dist, "src"), { recursive: true });
+await mkdir(join(dist, "server", "src"), { recursive: true });
 
 for (const file of moduleFiles) {
-  await copyFile(`src/${file}`, `dist/src/${file}`);
+  await copyFile(`src/${file}`, `dist/server/src/${file}`);
 }
 
 await writeFile(join(dist, "server", "index.js"), await buildWorkerEntrypoint(), "utf8");
@@ -67,7 +67,6 @@ async function buildStaticAssetModule() {
 async function buildWorkerEntrypoint() {
   const source = await readFile(join(root, "sites-worker.mjs"), "utf8");
   return source
-    .replaceAll("from \"./src/", "from \"../src/")
     .replaceAll("from \"./server/static-assets.mjs\"", "from \"./static-assets.mjs\"");
 }
 
