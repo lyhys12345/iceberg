@@ -38,6 +38,24 @@ assert.match(missingAmount.message, /how much you plan to buy/);
 assert.ok(missingAmount.trace.some((step) => step.step === "portfolio_context" && step.applied.includes("currentShares")));
 assert.ok(missingAmount.trace.some((step) => step.step === "market_resolver" && step.source === "portfolio_saved_price"));
 
+const timingRead = await runIcebergAgent(
+  {
+    message: "i want to buy NVDA, currently I have 10k free cash. is this a good time to buy?",
+    portfolio: demoPortfolio,
+  },
+  {
+    async fetchImpl() {
+      throw new Error("market offline");
+    },
+  },
+);
+
+assert.equal(timingRead.type, "research");
+assert.equal(timingRead.market.latestClose, 120);
+assert.match(timingRead.message, /timing read/);
+assert.match(timingRead.message, /planned buy amount/);
+assert.doesNotMatch(timingRead.message, /I still need how much you plan to buy before/);
+
 const quote = await runIcebergAgent(
   {
     message: "现在nvda股价多少钱",

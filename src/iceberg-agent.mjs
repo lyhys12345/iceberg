@@ -82,6 +82,17 @@ export async function runIcebergAgent(input, options = {}) {
   trace.push({ step: "missing_fields", missing });
 
   if (missing.length > 0) {
+    if (shouldGiveTimingRead(message, trade, missing)) {
+      const market = resolvedMarket || (await finalMarketSnapshotSkill(trade, portfolio, fetchImpl));
+      trace.push({ step: "market_timing_read", symbol: trade.symbol, marketSource: market.source });
+      return agentReply("research", `${marketNote}${timingReadMessage(market)}`, {
+        trade,
+        market,
+        trace,
+        intent: "trade",
+      });
+    }
+
     const marketSearchFailed = missing.includes("current price") && Boolean(marketNote);
     return agentReply(
       "question",
@@ -145,6 +156,43 @@ function quoteMessage(market, note = "") {
   const source = market.source ? ` Source: ${market.source}.` : "";
   const prefix = note ? `${note} ` : "";
   return `${prefix}${market.symbol} latest available price is ${price}${asOf}.${source} If you want a trade plan, tell me how much you are considering buying and your account size.`;
+}
+
+function shouldGiveTimingRead(message, trade, missing) {
+  return Boolean(
+    trade.symbol &&
+      positive(trade.currentPrice) &&
+      missing.includes("planned amount") &&
+      asksTimingQuestion(message),
+  );
+}
+
+function asksTimingQuestion(message) {
+  const text = String(message || "").toLowerCase();
+  return (
+    /\b(good time|right time|should i buy|should i enter|buy now|worth buying|is this.*buy|is now.*buy)\b/.test(text) ||
+    /\u597d\u65f6\u673a|\u597d\u6642\u6a5f|\u73b0\u5728.*\u4e70|\u73fe\u5728.*\u8cb7|\u8be5\u4e70|\u8a72\u8cb7|\u9002\u5408\u4e70|\u503c\u5f97\u4e70/.test(text)
+  );
+}
+
+function timingReadMessage(market) {
+  const price = Number(market.latestClose).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+  const trend = market.trend || "mixed";
+  const return20d = formatSignedPercent(market.return20d);
+  const drawdown = formatSignedPercent(market.maxDrawdown60d);
+  const volatility = formatSignedPercent(market.annualizedVolatility);
+
+  return `${market.symbol} is around ${price} as of ${market.asOf}. Recent 20-day move is ${return20d}, trend reads ${trend}, estimated annualized volatility is ${volatility}, and the recent 60-day drawdown is ${drawdown}. I can give you a timing read, but I should not pretend this is a full trade plan without order size. If you are unsure, start by deciding the maximum dollars you are willing to risk, then tell me the planned buy amount and I will calculate sizing, stop, downside, and protection.`;
+}
+
+function formatSignedPercent(value) {
+  const number = Number(value || 0) * 100;
+  const sign = number > 0 ? "+" : "";
+  return `${sign}${number.toFixed(1)}%`;
 }
 
 function agentReply(type, message, extra = {}) {

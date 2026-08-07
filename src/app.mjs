@@ -475,6 +475,12 @@ async function runLocalBeginnerAgent(text) {
   fillAdvisorForm(parsed);
 
   if (missing.length > 0) {
+    if (shouldGiveLocalTimingRead(text, parsed, missing)) {
+      const market = state.marketSnapshot || manualMarketSnapshot(parsed.symbol, parsed.currentPrice);
+      replaceLastAssistantMessage(`${marketSearchNote}${timingReadReply(market)}`);
+      return;
+    }
+
     replaceLastAssistantMessage(`${marketSearchNote}${beginnerQuestion(missing, { marketSearchFailed: searchFailed, symbol: parsed.symbol })}`);
     return;
   }
@@ -511,6 +517,28 @@ async function answerLocalQuote(text) {
 
 function quoteReply(snapshot) {
   return `${snapshot.symbol} latest available price is ${formatCurrency(snapshot.latestClose)} as of ${snapshot.asOf}. Source: ${snapshot.source}. If you want a trade plan, tell me how much you are considering buying and your account size.`;
+}
+
+function shouldGiveLocalTimingRead(message, trade, missing) {
+  return Boolean(
+    trade.symbol &&
+      positiveValue(trade.currentPrice) &&
+      missing.includes("planned amount") &&
+      asksTimingQuestion(message),
+  );
+}
+
+function asksTimingQuestion(message) {
+  const text = String(message || "").toLowerCase();
+  return (
+    /\b(good time|right time|should i buy|should i enter|buy now|worth buying|is this.*buy|is now.*buy)\b/.test(text) ||
+    /好时机|好時機|现在.*买|現在.*買|该买|該買|适合买|值得买/.test(text)
+  );
+}
+
+function timingReadReply(snapshot) {
+  const trend = snapshot.trend || "mixed";
+  return `${snapshot.symbol} is around ${formatCurrency(snapshot.latestClose)} as of ${snapshot.asOf}. Recent 20-day move is ${formatPercent(snapshot.return20d)}, trend reads ${trend}, estimated annualized volatility is ${formatPercent(snapshot.annualizedVolatility)}, and the recent 60-day drawdown is ${formatPercent(snapshot.maxDrawdown60d)}. I can give you a timing read, but I need your planned buy amount before I can calculate exact sizing, downside, stop, and protection.`;
 }
 
 function portfolioPriceForSymbol(symbol) {
