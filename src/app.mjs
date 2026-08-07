@@ -421,7 +421,7 @@ async function callIcebergAgent(message) {
 }
 
 function renderAgentResult(result) {
-  replaceLastAssistantMessage(result.message || "I could not complete the agent check.");
+  replaceLastAssistantMessage(result.message || "I could not complete the agent check.", result);
 
   if (result.trade) {
     fillAdvisorForm(result.trade);
@@ -624,19 +624,121 @@ function appendAgentLoading() {
   elements.agentConversation.scrollTop = elements.agentConversation.scrollHeight;
 }
 
-function replaceLastAssistantMessage(text) {
+function replaceLastAssistantMessage(text, result = null) {
   const assistantMessages = [...elements.agentConversation.querySelectorAll(".agent-message.assistant")];
   const lastMessage = assistantMessages.at(-1);
   const last = lastMessage?.querySelector("p");
   if (lastMessage && last) {
     lastMessage.classList.remove("loading");
+    lastMessage.classList.toggle("with-order-review", Boolean(canRenderOrderReview(result)));
     lastMessage.innerHTML = `
       <strong>Iceberg</strong>
-      ${renderAgentText(text)}
+      ${renderAgentResponse(text, result)}
     `;
   } else {
     appendAgentMessage("assistant", text);
   }
+}
+
+function renderAgentResponse(text, result) {
+  if (!canRenderOrderReview(result)) return renderAgentText(text);
+
+  return `
+    ${renderOrderReview(result)}
+    <details class="agent-full-analysis">
+      <summary>Full analysis</summary>
+      ${renderAgentText(text)}
+    </details>
+  `;
+}
+
+function canRenderOrderReview(result) {
+  return Boolean(result?.strategySelection?.orderTicket && result?.workflow?.steps?.length);
+}
+
+function renderOrderReview(result) {
+  const strategy = result.strategySelection;
+  const ticket = strategy.orderTicket;
+  const decision = result.report?.decision || {};
+  const riskScore = result.report?.riskScore;
+  const symbol = result.report?.trade?.symbol || result.trade?.symbol || "Trade";
+  const action = strategy.action || "review";
+  const actionClass = orderActionClass(action, decision.kind);
+  const primaryRisks = result.report?.flags?.slice(0, 3) || [];
+
+  return `
+    <section class="order-review" data-action="${actionClass}" aria-label="Order review">
+      <div class="order-review-head">
+        <div>
+          <span class="eyebrow">Order Review</span>
+          <h4>${escapeHtml(symbol)} - ${escapeHtml(actionLabel(action, decision.kind))}</h4>
+        </div>
+        <div class="order-verdict">
+          <span>${escapeHtml(decision.title || strategy.strategyName)}</span>
+          <strong>${Number.isFinite(Number(riskScore)) ? `${riskScore}/100` : "--"}</strong>
+        </div>
+      </div>
+
+      <div class="order-ticket-grid">
+        ${ticketMetric("Max buy", formatCurrency(ticket.maxDollars), `${ticket.maxShares || 0} shares`)}
+        ${ticketMetric("First entry", `${ticket.firstEntryShares || 0} shares`, firstEntryHint(strategy))}
+        ${ticketMetric("Stop", formatCurrency(ticket.stopPrice), `${formatCurrency(ticket.maxLossAtStop)} max loss`)}
+        ${ticketMetric("Strategy", strategy.strategyName, `${Math.round(Number(strategy.confidence || 0) * 100)}% confidence`)}
+      </div>
+
+      <div class="workflow-steps" aria-label="Agent workflow">
+        ${result.workflow.steps.map((step, index) => renderWorkflowStep(step, index)).join("")}
+      </div>
+
+      ${
+        primaryRisks.length
+          ? `<div class="order-risk-list">${primaryRisks.map((risk) => `<span>${escapeHtml(risk.title)}</span>`).join("")}</div>`
+          : ""
+      }
+    </section>
+  `;
+}
+
+function ticketMetric(label, value, detail) {
+  return `
+    <div class="order-ticket-metric">
+      <span>${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+      <small>${escapeHtml(detail)}</small>
+    </div>
+  `;
+}
+
+function renderWorkflowStep(step, index) {
+  return `
+    <div class="workflow-step" data-step="${escapeHtml(step.id || "")}">
+      <b>${index + 1}</b>
+      <div>
+        <strong>${escapeHtml(step.label || "")}</strong>
+        <span>${escapeHtml(step.output || "")}</span>
+      </div>
+    </div>
+  `;
+}
+
+function actionLabel(action, decisionKind) {
+  if (action === "wait" || decisionKind === "avoid") return "Wait";
+  if (action === "starter") return "Starter only";
+  if (action === "reduce") return "Reduce size";
+  return "Proceed with rules";
+}
+
+function orderActionClass(action, decisionKind) {
+  if (action === "wait" || decisionKind === "avoid") return "wait";
+  if (action === "starter" || action === "reduce" || decisionKind === "reduce") return "reduce";
+  return "proceed";
+}
+
+function firstEntryHint(strategy) {
+  if (strategy.action === "starter") return "small first click";
+  if (strategy.action === "reduce") return "reduced entry";
+  if (strategy.action === "wait") return "no order";
+  return "approved cap";
 }
 
 function renderAgentText(text) {
