@@ -9,10 +9,13 @@ assert.deepEqual(
     "intent_extraction",
     "portfolio_context",
     "market_resolver",
+    "market_research",
     "pre_trade_risk_check",
+    "risk_sizing",
     "behavioral_friction",
     "trade_protection_strategy",
     "ai_risk_brief",
+    "final_response",
   ],
 );
 

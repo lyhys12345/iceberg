@@ -20,11 +20,14 @@ const moduleFiles = [
   "strategy-catalog.mjs",
   "agent-skills/ai-risk-brief.mjs",
   "agent-skills/behavioral-friction.mjs",
+  "agent-skills/final-response.mjs",
   "agent-skills/index.mjs",
   "agent-skills/intent-extraction.mjs",
+  "agent-skills/market-research.mjs",
   "agent-skills/market-resolver.mjs",
   "agent-skills/portfolio-context.mjs",
   "agent-skills/pre-trade-risk-check.mjs",
+  "agent-skills/risk-sizing.mjs",
   "agent-skills/trade-protection-strategy.mjs",
 ];
 

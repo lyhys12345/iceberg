@@ -19,21 +19,34 @@ Iceberg's AI layer should behave like a pre-trade risk desk, not a single chat p
    - Falls back to the saved portfolio price if live data fails.
    - Asks for a current price only when no reliable source exists.
 
-4. `pre_trade_risk_check`
+4. `market_research`
+   - Converts raw market data into a beginner-readable timing read.
+   - Summarizes price, trend, recent returns, volatility, drawdown, stale-data risk, and chase risk.
+   - Allows Iceberg to answer "is now a good time?" with facts before asking for missing sizing inputs.
+
+5. `pre_trade_risk_check`
    - Runs deterministic sizing, Kelly estimate, exposure, downside, concentration, and decision logic.
    - Produces the structured risk report used by the UI and AI brief.
 
-5. `behavioral_friction`
+6. `risk_sizing`
+   - Extracts the actual size recommendation from the deterministic report.
+   - Summarizes suggested dollars, shares, stop risk, Kelly cap, cash cap, and future exposure.
+
+7. `behavioral_friction`
    - Detects FOMO, revenge trading, margin/leverage language, and oversized trades.
    - Adds slowdowns or hard stops before the trade reaches execution.
 
-6. `trade_protection_strategy`
+8. `trade_protection_strategy`
    - Converts the risk report into an entry plan, stop guidance, target logic, and strategy stack.
    - Makes the recommendation actionable instead of only saying "risky" or "safe."
 
-7. `ai_risk_brief`
+9. `ai_risk_brief`
    - Uses Gemini/OpenAI/local fallback to explain the structured report in beginner-friendly language.
    - The AI is a translator and coach; the deterministic risk engine remains the source of truth.
+
+10. `final_response`
+   - Composes the user-facing risk memo from intent, market research, risk sizing, strategy, friction, and AI brief.
+   - Keeps the answer in decision-friction language: wait, reduce, or consider with rules.
 
 ## Product Principle
 

@@ -589,7 +589,7 @@ function appendAgentMessage(role, text) {
     `
       <article class="agent-message ${role}">
         <strong>${role === "user" ? "You" : "Iceberg"}</strong>
-        <p>${escapeHtml(text)}</p>
+        ${renderAgentText(text)}
       </article>
     `,
   );
@@ -627,11 +627,20 @@ function replaceLastAssistantMessage(text) {
     lastMessage.classList.remove("loading");
     lastMessage.innerHTML = `
       <strong>Iceberg</strong>
-      <p>${escapeHtml(text)}</p>
+      ${renderAgentText(text)}
     `;
   } else {
     appendAgentMessage("assistant", text);
   }
+}
+
+function renderAgentText(text) {
+  return String(text || "")
+    .split(/\n{2,}/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => `<p>${escapeHtml(part)}</p>`)
+    .join("");
 }
 
 function setAgentLoading(isLoading) {

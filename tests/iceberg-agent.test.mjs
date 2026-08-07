@@ -52,9 +52,12 @@ const timingRead = await runIcebergAgent(
 
 assert.equal(timingRead.type, "research");
 assert.equal(timingRead.market.latestClose, 120);
-assert.match(timingRead.message, /timing read/);
+assert.match(timingRead.message, /Timing bias/);
 assert.match(timingRead.message, /planned buy amount/);
 assert.doesNotMatch(timingRead.message, /I still need how much you plan to buy before/);
+assert.equal(timingRead.workflow.marketResearch.symbol, "NVDA");
+assert.ok(timingRead.trace.some((step) => step.step === "market_research"));
+assert.ok(timingRead.trace.some((step) => step.step === "final_response" && step.type === "incomplete_trade"));
 
 const quote = await runIcebergAgent(
   {
@@ -91,10 +94,18 @@ assert.equal(plan.report.trade.symbol, "NVDA");
 assert.equal(plan.report.trade.currentShares, 10);
 assert.ok(plan.report.sizing.suggestedShares > 0);
 assert.ok(plan.aiBrief);
-assert.ok(plan.trace.some((step) => step.step === "pre_trade_risk_check"));
+assert.ok(plan.workflow.marketResearch);
+assert.ok(plan.workflow.riskSizing);
+assert.ok(plan.workflow.strategySelection);
+assert.ok(plan.workflow.finalResponse);
+assert.match(plan.message, /Verdict:/);
+assert.match(plan.message, /Market read:/);
+assert.match(plan.message, /Risk sizing:/);
+assert.ok(plan.trace.some((step) => step.step === "risk_sizing"));
 assert.ok(plan.trace.some((step) => step.step === "behavioral_friction"));
 assert.ok(plan.trace.some((step) => step.step === "trade_protection_strategy"));
 assert.ok(plan.trace.some((step) => step.step === "ai_risk_brief"));
+assert.ok(plan.trace.some((step) => step.step === "final_response"));
 
 process.env.GEMINI_API_KEY = "test-key";
 const extractionCalls = [];

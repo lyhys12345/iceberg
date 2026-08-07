@@ -1,12 +1,15 @@
 import { beginnerAdvice, beginnerIntro, beginnerMissingFields, beginnerQuestion, parseBeginnerTradeMessage } from "./conversation-agent.mjs";
 import {
   finalMarketSnapshotSkill,
+  runFinalResponseSkill,
+  runIncompleteTradeResponseSkill,
   runAiRiskBriefSkill,
   runBehavioralFrictionSkill,
   runIntentExtractionSkill,
+  runMarketResearchSkill,
   runMarketResolverSkill,
   runPortfolioContextSkill,
-  runPreTradeRiskCheckSkill,
+  runRiskSizingSkill,
   runTradeProtectionStrategySkill,
 } from "./agent-skills/index.mjs";
 
@@ -84,10 +87,23 @@ export async function runIcebergAgent(input, options = {}) {
   if (missing.length > 0) {
     if (shouldGiveTimingRead(message, trade, missing)) {
       const market = resolvedMarket || (await finalMarketSnapshotSkill(trade, portfolio, fetchImpl));
-      trace.push({ step: "market_timing_read", symbol: trade.symbol, marketSource: market.source });
-      return agentReply("research", `${marketNote}${timingReadMessage(market)}`, {
+      const marketResearch = runMarketResearchSkill(trade, market);
+      const finalResponse = runIncompleteTradeResponseSkill({ marketResearch, missing });
+      trace.push({
+        step: "market_research",
+        symbol: trade.symbol,
+        marketSource: market.source,
+        timingBias: marketResearch.timingBias,
+      });
+      trace.push({ step: "final_response", type: "incomplete_trade" });
+      return agentReply("research", `${marketNote}${finalResponse.message}`, {
         trade,
         market,
+        workflow: {
+          intent: interpretation.intent,
+          marketResearch,
+          finalResponse,
+        },
         trace,
         intent: "trade",
       });
@@ -102,9 +118,17 @@ export async function runIcebergAgent(input, options = {}) {
   }
 
   const market = resolvedMarket || (await finalMarketSnapshotSkill(trade, portfolio, fetchImpl));
-  const risk = runPreTradeRiskCheckSkill(trade, market);
-  const report = risk.report;
-  trace.push({ step: "pre_trade_risk_check", symbol: trade.symbol, marketSource: market.source, summary: risk.summary });
+  const marketResearch = runMarketResearchSkill(trade, market);
+  trace.push({
+    step: "market_research",
+    symbol: trade.symbol,
+    marketSource: market.source,
+    timingBias: marketResearch.timingBias,
+  });
+
+  const riskSizing = runRiskSizingSkill(trade, market);
+  const report = riskSizing.report;
+  trace.push({ step: "risk_sizing", symbol: trade.symbol, marketSource: market.source, summary: riskSizing.summary });
 
   const friction = runBehavioralFrictionSkill(trade, report);
   trace.push({ step: "behavioral_friction", level: friction.level, impulseLanguage: friction.impulseLanguage, oversized: friction.oversized });
@@ -120,9 +144,32 @@ export async function runIcebergAgent(input, options = {}) {
     trace.push({ step: "ai_risk_brief", source: "failed", error: String(error?.message || error) });
   }
 
-  const frictionSentence = friction.level === "normal" ? "" : ` ${friction.instruction}`;
-  const agentMessage = `${marketNote}${beginnerAdvice(report)}${frictionSentence} I used the Iceberg skill chain: intent extraction, portfolio context, market resolver, risk check, behavioral friction, and protection strategy.`;
-  return agentReply("plan", agentMessage, { trade, market, report, friction, protectionStrategy, aiBrief, trace });
+  const finalResponse = runFinalResponseSkill({
+    trade,
+    marketResearch,
+    riskSizing,
+    friction,
+    strategySelection: protectionStrategy,
+    aiBrief,
+  });
+  trace.push({ step: "final_response", type: "trade_plan", sections: Object.keys(finalResponse.sections) });
+
+  return agentReply("plan", `${marketNote}${finalResponse.message}`, {
+    trade,
+    market,
+    report,
+    friction,
+    protectionStrategy,
+    aiBrief,
+    workflow: {
+      intent: interpretation.intent,
+      marketResearch,
+      riskSizing: withoutReport(riskSizing),
+      strategySelection: protectionStrategy,
+      finalResponse,
+    },
+    trace,
+  });
 }
 
 function mergeTradeFields(base, fields) {
@@ -187,6 +234,11 @@ function timingReadMessage(market) {
   const volatility = formatSignedPercent(market.annualizedVolatility);
 
   return `${market.symbol} is around ${price} as of ${market.asOf}. Recent 20-day move is ${return20d}, trend reads ${trend}, estimated annualized volatility is ${volatility}, and the recent 60-day drawdown is ${drawdown}. I can give you a timing read, but I should not pretend this is a full trade plan without order size. If you are unsure, start by deciding the maximum dollars you are willing to risk, then tell me the planned buy amount and I will calculate sizing, stop, downside, and protection.`;
+}
+
+function withoutReport(riskSizing) {
+  const { report, ...summary } = riskSizing;
+  return summary;
 }
 
 function formatSignedPercent(value) {
