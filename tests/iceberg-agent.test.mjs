@@ -38,6 +38,24 @@ assert.match(missingAmount.message, /how much you plan to buy/);
 assert.ok(missingAmount.trace.some((step) => step.step === "portfolio_context" && step.applied.includes("currentShares")));
 assert.ok(missingAmount.trace.some((step) => step.step === "market_resolver" && step.source === "portfolio_saved_price"));
 
+const quote = await runIcebergAgent(
+  {
+    message: "现在nvda股价多少钱",
+    portfolio: demoPortfolio,
+  },
+  {
+    async fetchImpl() {
+      throw new Error("market offline");
+    },
+  },
+);
+
+assert.equal(quote.type, "quote");
+assert.equal(quote.intent, "quote");
+assert.equal(quote.market.latestClose, 120);
+assert.match(quote.message, /NVDA latest available price is \$120/);
+assert.doesNotMatch(quote.message, /how much you plan to buy before/);
+
 const plan = await runIcebergAgent(
   {
     message: "I want to buy NVDA with $1000. Current price is $120.",

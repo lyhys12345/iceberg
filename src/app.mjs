@@ -435,6 +435,11 @@ function renderAgentResult(result) {
 
 async function runLocalBeginnerAgent(text) {
   const intent = classifyBeginnerIntent(text);
+  if (intent === "quote") {
+    await answerLocalQuote(text);
+    return;
+  }
+
   if (intent !== "trade") {
     replaceLastAssistantMessage(beginnerIntro(intent));
     return;
@@ -476,6 +481,36 @@ async function runLocalBeginnerAgent(text) {
 
   const report = generateAdvisorPlan();
   replaceLastAssistantMessage(`${beginnerAdvice(report)} I filled the advanced model below so you can inspect the assumptions.`);
+}
+
+async function answerLocalQuote(text) {
+  const parsed = parseBeginnerTradeMessage(text, readTrustedAdvisorDefaults());
+  if (!parsed.symbol) {
+    replaceLastAssistantMessage("Which stock ticker do you want me to check?");
+    return;
+  }
+
+  try {
+    const snapshot = await fetchMarketSnapshot(parsed.symbol);
+    state.marketSnapshot = snapshot;
+    renderMarketSnapshot(snapshot);
+    replaceLastAssistantMessage(quoteReply(snapshot));
+  } catch (error) {
+    const portfolioPrice = portfolioPriceForSymbol(parsed.symbol);
+    if (portfolioPrice) {
+      const fallback = manualMarketSnapshot(parsed.symbol, portfolioPrice);
+      state.marketSnapshot = fallback;
+      renderMarketSnapshot(fallback);
+      replaceLastAssistantMessage(`I could not reach live market data, so I used your saved ${parsed.symbol} portfolio price: ${formatCurrency(portfolioPrice)}. If you want a trade plan, tell me how much you are considering buying and your account size.`);
+      return;
+    }
+
+    replaceLastAssistantMessage(`${marketSearchFailureMessage(parsed.symbol, error)} If you paste the latest price, I can use it for a risk check.`);
+  }
+}
+
+function quoteReply(snapshot) {
+  return `${snapshot.symbol} latest available price is ${formatCurrency(snapshot.latestClose)} as of ${snapshot.asOf}. Source: ${snapshot.source}. If you want a trade plan, tell me how much you are considering buying and your account size.`;
 }
 
 function portfolioPriceForSymbol(symbol) {

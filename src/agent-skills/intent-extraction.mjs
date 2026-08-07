@@ -19,6 +19,7 @@ async function interpretWithGemini(message, defaults, fetchImpl) {
     "You are the intent and field extraction layer for Iceberg, an AI pre-trade risk system.",
     "Classify the user message. Extract only facts the user explicitly provided.",
     "If the user is greeting, asking who you are, or asking how to use the product, do not invent a trade.",
+    "If the user only asks for a stock price, quote, latest price, or current market price, classify it as quote, not trade.",
     "Return JSON only.",
     JSON.stringify({ message, knownDefaults: defaults }),
   ].join("\n\n");
@@ -31,7 +32,7 @@ async function interpretWithGemini(message, defaults, fetchImpl) {
     },
     body: JSON.stringify({
       model,
-      input: `${prompt}\n\nReturn JSON only with keys: intent, reply, fields. intent must be one of greeting, identity, help, trade.`,
+      input: `${prompt}\n\nReturn JSON only with keys: intent, reply, fields. intent must be one of greeting, identity, help, quote, trade.`,
     }),
   });
 
@@ -57,7 +58,7 @@ function localInterpretation(message, fallbackReason) {
 }
 
 function normalizeIntent(intent) {
-  return ["greeting", "identity", "help", "trade"].includes(intent) ? intent : "trade";
+  return ["greeting", "identity", "help", "quote", "trade"].includes(intent) ? intent : "trade";
 }
 
 function normalizeExtractedFields(fields) {

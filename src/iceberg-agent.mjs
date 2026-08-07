@@ -30,6 +30,31 @@ export async function runIcebergAgent(input, options = {}) {
     fields: summarizeFields(interpretation.fields),
   });
 
+  if (interpretation.intent === "quote") {
+    const quoteTrade = mergeTradeFields(parseBeginnerTradeMessage(message, defaults), interpretation.fields);
+    if (!quoteTrade.symbol) {
+      return agentReply("question", "Which stock ticker do you want me to check?", { trade: quoteTrade, trace, intent: "quote" });
+    }
+
+    const marketResult = await runMarketResolverSkill(quoteTrade.symbol, portfolio, fetchImpl);
+    trace.push({ step: "market_resolver", source: marketResult.source, ok: Boolean(marketResult.market), note: marketResult.note });
+
+    if (!marketResult.market) {
+      return agentReply(
+        "question",
+        `${marketResult.note} If you paste the latest ${quoteTrade.symbol} price, I can use it for a risk check.`,
+        { trade: quoteTrade, trace, intent: "quote" },
+      );
+    }
+
+    return agentReply("quote", quoteMessage(marketResult.market, marketResult.note), {
+      trade: quoteTrade,
+      market: marketResult.market,
+      trace,
+      intent: "quote",
+    });
+  }
+
   if (interpretation.intent !== "trade") {
     return agentReply("intro", interpretation.reply || beginnerIntro(interpretation.intent), { trace, intent: interpretation.intent });
   }
@@ -108,6 +133,18 @@ function summarizeFields(fields = {}) {
 function positive(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0;
+}
+
+function quoteMessage(market, note = "") {
+  const price = Number(market.latestClose).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+  const asOf = market.asOf ? ` as of ${market.asOf}` : "";
+  const source = market.source ? ` Source: ${market.source}.` : "";
+  const prefix = note ? `${note} ` : "";
+  return `${prefix}${market.symbol} latest available price is ${price}${asOf}.${source} If you want a trade plan, tell me how much you are considering buying and your account size.`;
 }
 
 function agentReply(type, message, extra = {}) {

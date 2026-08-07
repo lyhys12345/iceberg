@@ -19,8 +19,13 @@ assert.equal(lowercaseContextTicker.symbol, "NVDA");
 assert.equal(classifyBeginnerIntent("hi who are you"), "identity");
 assert.equal(classifyBeginnerIntent("how do I use this?"), "help");
 assert.equal(classifyBeginnerIntent("hello"), "greeting");
+assert.equal(classifyBeginnerIntent("现在nvda股价多少钱"), "quote");
 assert.equal(classifyBeginnerIntent("I want to buy NVDA with $1000"), "trade");
 assert.match(beginnerIntro("identity"), /pre-trade risk layer/);
+
+const quote = parseBeginnerTradeMessage("现在nvda股价多少钱");
+assert.equal(quote.symbol, "NVDA");
+assert.equal(quote.plannedBudget, "");
 
 const chinese = parseBeginnerTradeMessage("我想买 TSLA，账户 2 万，准备买 3000 美元，现在股价 250。");
 assert.equal(chinese.symbol, "TSLA");

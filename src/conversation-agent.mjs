@@ -3,12 +3,19 @@ export function parseBeginnerTradeMessage(message, defaults = {}) {
   const normalized = text.replaceAll(",", "");
   const lower = normalized.toLowerCase();
   const symbol = extractSymbol(normalized);
-  const accountValue = findFieldAmount(normalized, ["account", "portfolio", "账户", "本金", "资金"]) || defaults.accountValue || "";
-  const cashAvailable = findFieldAmount(normalized, ["available cash", "cash available", "cash", "现金", "可用资金", "可用现金"]) || defaults.cashAvailable || accountValue || "";
-  const plannedBudget = findPlannedAmount(normalized) || defaults.plannedBudget || "";
-  const currentPrice = findFieldAmount(normalized, ["current price", "latest price", "stock price", "price", "现在股价", "股价", "价格"]) || "";
-  const horizon = lower.includes("day") || lower.includes("日内") ? "day" : lower.includes("long") || lower.includes("长期") ? "long" : defaults.horizon || "swing";
-  const side = lower.includes("sell") || lower.includes("卖") ? "sell" : "buy";
+  const accountValue = findFieldAmount(normalized, ["account", "portfolio", "\u8d26\u6237", "\u672c\u91d1", "\u8d44\u91d1"]) || defaults.accountValue || "";
+  const cashAvailable =
+    findFieldAmount(normalized, ["available cash", "cash available", "cash", "\u73b0\u91d1", "\u53ef\u7528\u8d44\u91d1", "\u53ef\u7528\u73b0\u91d1"]) ||
+    defaults.cashAvailable ||
+    accountValue ||
+    "";
+  const plannedBudget =
+    findPlannedAmount(normalized, Boolean(classifyBeginnerIntent(message) === "quote")) || defaults.plannedBudget || "";
+  const currentPrice =
+    findFieldAmount(normalized, ["current price", "latest price", "stock price", "price", "\u73b0\u5728\u80a1\u4ef7", "\u80a1\u4ef7", "\u4ef7\u683c"]) ||
+    "";
+  const horizon = lower.includes("day") || lower.includes("\u65e5\u5185") ? "day" : lower.includes("long") || lower.includes("\u957f\u671f") ? "long" : defaults.horizon || "swing";
+  const side = lower.includes("sell") || lower.includes("\u5356") ? "sell" : "buy";
 
   return {
     symbol,
@@ -34,13 +41,24 @@ export function classifyBeginnerIntent(message) {
   const text = String(message || "").trim().toLowerCase();
   if (!text) return "empty";
 
-  const greetingOnly = /^(hi|hello|hey|yo|你好|嗨|哈喽|hello there)[\s!.?，。]*$/.test(text);
-  const asksIdentity = /\b(who are you|what are you|what is iceberg|introduce yourself)\b|你是谁|你是干嘛|这是什么/.test(text);
-  const asksHelp = /\b(help|how do i use|what can you do|how does this work|example)\b|怎么用|你能做什么|如何使用|帮我/.test(text);
+  const greetingOnly = /^(hi|hello|hey|yo|hello there|\u4f60\u597d|\u55e8|\u54c8\u55bd)[\s!.?,.\u3002\uff0c]*$/.test(text);
+  const asksIdentity =
+    /\b(who are you|what are you|what is iceberg|introduce yourself)\b/.test(text) ||
+    /\u4f60\u662f\u8c01|\u4f60\u662f\u5e72\u561b|\u8fd9\u662f\u4ec0\u4e48/.test(text);
+  const asksHelp =
+    /\b(help|how do i use|what can you do|how does this work|example)\b/.test(text) ||
+    /\u600e\u4e48\u7528|\u4f60\u80fd\u505a\u4ec0\u4e48|\u5982\u4f55\u4f7f\u7528|\u5e2e\u6211/.test(text);
+  const asksQuote =
+    /\b(price|quote|stock price|latest price|how much is|what is .* trading at)\b/.test(text) ||
+    /\u80a1\u4ef7|\u4ef7\u683c|\u591a\u5c11\u94b1|\u62a5\u4ef7|\u5831\u50f9/.test(text);
+  const tradeVerb =
+    /\b(buy|sell|trade|purchase|short|long|add|trim)\b/.test(text) ||
+    /\u4e70|\u5356|\u4ea4\u6613|\u4e70\u5165|\u5356\u51fa|\u52a0\u4ed3|\u51cf\u4ed3/.test(text);
 
   if (asksIdentity) return "identity";
   if (asksHelp) return "help";
   if (greetingOnly) return "greeting";
+  if (asksQuote && !tradeVerb) return "quote";
   return "trade";
 }
 
@@ -53,7 +71,11 @@ export function beginnerIntro(intent = "identity") {
   }
 
   if (intent === "help") {
-    return `${base} You can say: "I want to buy NVDA with $1,000", or add context like account size, cash, current shares, and current price. If you saved a Portfolio, I will use that context automatically.`;
+    return `${base} You can say: "I want to buy NVDA with $1,000", ask "what is NVDA's price?", or add context like account size, cash, current shares, and current price. If you saved a Portfolio, I will use that context automatically.`;
+  }
+
+  if (intent === "quote") {
+    return "Tell me a ticker and I can check the latest available market price before we talk about trade sizing.";
   }
 
   return `${base} My job is to make impulsive trades harder and planned trades clearer. Start with a ticker, planned amount, and price if you have it.`;
@@ -135,9 +157,14 @@ function extractSymbol(text) {
     "usd",
     "with",
   ]);
-  const contextMatch = text.match(/\b(?:buy|sell|trade|research|watch|ticker|symbol|stock|买|卖)\s+\$?([a-z]{1,5})\b/);
+  const contextMatch = text.match(/\b(?:buy|sell|trade|research|watch|ticker|symbol|stock|\u4e70|\u5356)\s+\$?([a-z]{1,5})\b/i);
   if (contextMatch && !lowerIgnored.has(contextMatch[1].toLowerCase())) {
     return contextMatch[1].toUpperCase();
+  }
+
+  const quoteContextMatch = text.match(/\b([a-z]{1,5})\b(?=.*(?:price|quote|stock price|latest price|\u80a1\u4ef7|\u4ef7\u683c|\u591a\u5c11\u94b1|\u62a5\u4ef7|\u5831\u50f9))/i);
+  if (quoteContextMatch && !lowerIgnored.has(quoteContextMatch[1].toLowerCase())) {
+    return quoteContextMatch[1].toUpperCase();
   }
 
   const trimmed = text.trim();
@@ -151,7 +178,7 @@ function extractSymbol(text) {
 function findFieldAmount(text, phrases) {
   for (const phrase of phrases) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(`${escaped}\\s*(?:is|=|:|：|为|是)?\\s*(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|万))?`, "i");
+    const pattern = new RegExp(`${escaped}\\s*(?:is|=|:|\uff1a|\u4e3a|\u662f)?\\s*(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|\u4e07))?`, "i");
     const match = text.match(pattern);
     if (match) return String(scaleAmount(match[1], match[2]));
   }
@@ -159,7 +186,9 @@ function findFieldAmount(text, phrases) {
   return "";
 }
 
-function findPlannedAmount(text) {
+function findPlannedAmount(text, isQuote = false) {
+  if (isQuote) return "";
+
   const phrases = [
     "plan to buy",
     "planning to buy",
@@ -169,16 +198,16 @@ function findPlannedAmount(text) {
     "buy",
     "spend",
     "budget",
-    "准备买",
-    "打算买",
-    "买入",
-    "投入",
-    "计划",
+    "\u51c6\u5907\u4e70",
+    "\u6253\u7b97\u4e70",
+    "\u4e70\u5165",
+    "\u6295\u5165",
+    "\u8ba1\u5212",
   ];
 
   for (const phrase of phrases) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(`${escaped}\\s*(?:another|about|around|roughly|approximately|up to|大概|大约|约)?\\s*(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|万))?`, "i");
+    const pattern = new RegExp(`${escaped}\\s*(?:another|about|around|roughly|approximately|up to|\u5927\u6982|\u5927\u7ea6|\u7ea6)?\\s*(?:\\$|usd\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(k|m|\u4e07))?`, "i");
     const match = text.match(pattern);
     if (match) return String(scaleAmount(match[1], match[2]));
   }
@@ -195,7 +224,7 @@ function findPlannedAmount(text) {
 function scaleAmount(rawValue, rawSuffix) {
   const value = Number(rawValue);
   const suffix = String(rawSuffix || "").toLowerCase();
-  const multiplier = suffix === "k" ? 1000 : suffix === "m" ? 1000000 : suffix === "万" ? 10000 : 1;
+  const multiplier = suffix === "k" ? 1000 : suffix === "m" ? 1000000 : suffix === "\u4e07" ? 10000 : 1;
   return value * multiplier;
 }
 
