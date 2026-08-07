@@ -10,7 +10,7 @@ import {
   runMarketResolverSkill,
   runPortfolioContextSkill,
   runRiskSizingSkill,
-  runTradeProtectionStrategySkill,
+  runStrategySelectionSkill,
 } from "./agent-skills/index.mjs";
 
 export async function runIcebergAgent(input, options = {}) {
@@ -133,8 +133,13 @@ export async function runIcebergAgent(input, options = {}) {
   const friction = runBehavioralFrictionSkill(trade, report);
   trace.push({ step: "behavioral_friction", level: friction.level, impulseLanguage: friction.impulseLanguage, oversized: friction.oversized });
 
-  const protectionStrategy = runTradeProtectionStrategySkill(report);
-  trace.push({ step: "trade_protection_strategy", strategy: protectionStrategy.strategyName });
+  const strategySelection = runStrategySelectionSkill({ trade, marketResearch, riskSizing, friction, report });
+  trace.push({
+    step: "strategy_selection",
+    strategy: strategySelection.strategyName,
+    action: strategySelection.action,
+    confidence: strategySelection.confidence,
+  });
 
   let aiBrief = null;
   try {
@@ -149,8 +154,9 @@ export async function runIcebergAgent(input, options = {}) {
     marketResearch,
     riskSizing,
     friction,
-    strategySelection: protectionStrategy,
+    strategySelection,
     aiBrief,
+    workflowSteps: buildWorkflowSteps({ interpretation, marketResearch, riskSizing, strategySelection, aiBrief }),
   });
   trace.push({ step: "final_response", type: "trade_plan", sections: Object.keys(finalResponse.sections) });
 
@@ -159,13 +165,15 @@ export async function runIcebergAgent(input, options = {}) {
     market,
     report,
     friction,
-    protectionStrategy,
+    protectionStrategy: strategySelection,
+    strategySelection,
     aiBrief,
     workflow: {
       intent: interpretation.intent,
+      steps: buildWorkflowSteps({ interpretation, marketResearch, riskSizing, strategySelection, aiBrief }),
       marketResearch,
       riskSizing: withoutReport(riskSizing),
-      strategySelection: protectionStrategy,
+      strategySelection,
       finalResponse,
     },
     trace,
@@ -239,6 +247,46 @@ function timingReadMessage(market) {
 function withoutReport(riskSizing) {
   const { report, ...summary } = riskSizing;
   return summary;
+}
+
+function buildWorkflowSteps({ interpretation, marketResearch, riskSizing, strategySelection, aiBrief }) {
+  return [
+    {
+      id: "intent_extraction",
+      label: "Intent extraction",
+      status: "complete",
+      output: interpretation.intent,
+      detail: `Read the message as ${interpretation.intent}.`,
+    },
+    {
+      id: "market_research",
+      label: "Market research",
+      status: "complete",
+      output: marketResearch.timingBias,
+      detail: marketResearch.summary,
+    },
+    {
+      id: "risk_sizing",
+      label: "Risk sizing",
+      status: "complete",
+      output: `${riskSizing.sizing.suggestedShares} shares`,
+      detail: `Risk score ${riskSizing.riskScore}/100; Kelly cap ${formatSignedPercent(riskSizing.kelly.fractionalKelly)} of account.`,
+    },
+    {
+      id: "strategy_selection",
+      label: "Strategy selection",
+      status: "complete",
+      output: strategySelection.strategyName,
+      detail: strategySelection.beginnerSummary,
+    },
+    {
+      id: "final_response",
+      label: "Final response",
+      status: "complete",
+      output: aiBrief?.source === "gemini" ? "Gemini assisted" : "Deterministic fallback",
+      detail: "Compose a beginner-readable answer without pretending to predict price.",
+    },
+  ];
 }
 
 function formatSignedPercent(value) {

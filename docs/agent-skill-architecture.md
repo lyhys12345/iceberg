@@ -36,9 +36,10 @@ Iceberg's AI layer should behave like a pre-trade risk desk, not a single chat p
    - Detects FOMO, revenge trading, margin/leverage language, and oversized trades.
    - Adds slowdowns or hard stops before the trade reaches execution.
 
-8. `trade_protection_strategy`
-   - Converts the risk report into an entry plan, stop guidance, target logic, and strategy stack.
-   - Makes the recommendation actionable instead of only saying "risky" or "safe."
+8. `strategy_selection`
+   - Chooses the right beginner-safe strategy from intent, market research, risk sizing, concentration, and behavioral friction.
+   - Produces an order action: wait, reduce, starter, or proceed with rules.
+   - Turns the strategy into an order ticket with max dollars, max shares, first entry size, stop price, and max loss at stop.
 
 9. `ai_risk_brief`
    - Uses Gemini/OpenAI/local fallback to explain the structured report in beginner-friendly language.
@@ -47,6 +48,16 @@ Iceberg's AI layer should behave like a pre-trade risk desk, not a single chat p
 10. `final_response`
    - Composes the user-facing risk memo from intent, market research, risk sizing, strategy, friction, and AI brief.
    - Keeps the answer in decision-friction language: wait, reduce, or consider with rules.
+
+## Main Agent Workflow
+
+The user-facing answer now follows five visible steps:
+
+1. Intent extraction: decide whether this is a quote, trade plan, help request, or identity question.
+2. Market research: get the latest available market read and classify timing bias.
+3. Risk sizing: calculate Kelly, exposure, stop risk, and maximum safe size.
+4. Strategy selection: choose wait, reduce, starter entry, or rule-based position.
+5. Final response: give a beginner-readable decision without pretending to predict price.
 
 ## Product Principle
 

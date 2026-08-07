@@ -7,6 +7,7 @@ export { finalMarketSnapshotSkill, runMarketResolverSkill } from "./market-resol
 export { portfolioPriceForSymbol, runPortfolioContextSkill } from "./portfolio-context.mjs";
 export { runPreTradeRiskCheckSkill } from "./pre-trade-risk-check.mjs";
 export { runRiskSizingSkill } from "./risk-sizing.mjs";
+export { runStrategySelectionSkill } from "./strategy-selection.mjs";
 export { runTradeProtectionStrategySkill } from "./trade-protection-strategy.mjs";
 
 export const icebergAgentSkillCatalog = [
@@ -39,8 +40,8 @@ export const icebergAgentSkillCatalog = [
     purpose: "Detect FOMO, oversized requests, and emotional language that should slow or stop trading.",
   },
   {
-    id: "trade_protection_strategy",
-    purpose: "Convert the risk report into entry, stop, target, and strategy guidance.",
+    id: "strategy_selection",
+    purpose: "Choose the right beginner-safe trade strategy from intent, market read, sizing, portfolio concentration, and behavioral friction.",
   },
   {
     id: "ai_risk_brief",

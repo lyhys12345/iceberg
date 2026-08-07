@@ -29,6 +29,7 @@ const moduleFiles = [
   "agent-skills/portfolio-context.mjs",
   "agent-skills/pre-trade-risk-check.mjs",
   "agent-skills/risk-sizing.mjs",
+  "agent-skills/strategy-selection.mjs",
   "agent-skills/trade-protection-strategy.mjs",
 ];
 
