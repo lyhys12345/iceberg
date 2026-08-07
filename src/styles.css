@@ -3389,3 +3389,63 @@ legend {
   background: #ffffff;
   color: #06111e;
 }
+
+/* Chat ergonomics: make the agent feel like the main workspace. */
+.chat-panel {
+  min-height: clamp(620px, 72vh, 820px);
+}
+
+.chat-panel .panel-heading {
+  padding: 30px 34px 12px;
+}
+
+.agent-conversation {
+  min-height: 360px;
+  max-height: clamp(420px, 48vh, 560px);
+  padding: 18px 34px 22px;
+}
+
+.agent-message {
+  max-width: min(940px, 94%);
+}
+
+.agent-form {
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 14px;
+  padding: 0 34px 20px;
+}
+
+.agent-form textarea {
+  min-height: 118px;
+}
+
+.quick-prompts {
+  padding: 0 34px 30px;
+}
+
+@media (max-width: 760px) {
+  .chat-panel {
+    min-height: 610px;
+  }
+
+  .chat-panel .panel-heading,
+  .agent-conversation,
+  .agent-form,
+  .quick-prompts {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .agent-conversation {
+    min-height: 330px;
+    max-height: 430px;
+  }
+
+  .agent-form {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-form textarea {
+    min-height: 132px;
+  }
+}

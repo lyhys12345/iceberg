@@ -176,6 +176,11 @@ function bindForms() {
     event.preventDefault();
     await askBeginnerAgent(elements.agentPrompt.value);
   });
+  elements.agentPrompt.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    elements.agentForm.requestSubmit();
+  });
   elements.quickPrompts.forEach((button) => {
     button.addEventListener("click", () => {
       elements.agentPrompt.value = button.dataset.prompt;
