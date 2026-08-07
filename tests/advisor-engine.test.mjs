@@ -87,4 +87,26 @@ assert.ok(impulseFlagTitles.includes("Impulse language"));
 assert.ok(impulseFlagTitles.includes("Oversized request"));
 assert.ok(impulseFlagTitles.includes("Cash cap"));
 
+const fomoReport = analyzeAdvisorTrade(
+  {
+    symbol: "NVDA",
+    accountValue: 14725,
+    cashAvailable: 5200,
+    plannedBudget: 5000,
+    currentPrice: 120,
+    maxRiskPercent: 1,
+    winProbability: 55,
+    upsidePercent: 12,
+    downsidePercent: 8,
+    stopLossPercent: 6,
+    targetGainPercent: 12,
+    kellyFractionPercent: 25,
+    thesis: "NVDA is mooning and I am afraid to miss it. I plan to buy now.",
+  },
+  { ...market, symbol: "NVDA", latestClose: 120 },
+);
+
+assert.equal(fomoReport.decision.kind, "reduce");
+assert.ok(fomoReport.flags.some((flag) => flag.title === "Impulse language"));
+
 console.log("advisor-engine tests passed");

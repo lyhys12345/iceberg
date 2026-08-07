@@ -2,14 +2,16 @@ import assert from "node:assert/strict";
 import { generateGeminiRiskBrief, parseGeminiJson } from "../src/gemini-risk-agent.mjs";
 
 const parsed = parseGeminiJson({
-  output_text: JSON.stringify({
+  output_text: `\`\`\`json
+${JSON.stringify({
     pattern: "possible FOMO",
     confidence: 0.81,
     missingItems: ["exit condition"],
     signals: ["urgent language"],
     summary: "Reduce size and define the stop first.",
     reflectionPrompt: "What proves this trade wrong?",
-  }),
+  })}
+\`\`\``,
 });
 
 assert.equal(parsed.pattern, "possible FOMO");
@@ -46,14 +48,24 @@ const geminiBrief = await generateGeminiRiskBrief(
       ok: true,
       async json() {
         return {
-          output_text: JSON.stringify({
-            pattern: "plan-based trade",
-            confidence: 0.7,
-            missingItems: [],
-            signals: [],
-            summary: "The plan is structured.",
-            reflectionPrompt: "Will you follow the stop?",
-          }),
+          steps: [
+            {
+              type: "model_output",
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    pattern: "plan-based trade",
+                    confidence: 0.7,
+                    missingItems: [],
+                    signals: [],
+                    summary: "The plan is structured.",
+                    reflectionPrompt: "Will you follow the stop?",
+                  }),
+                },
+              ],
+            },
+          ],
         };
       },
     };
@@ -64,6 +76,9 @@ assert.equal(geminiBrief.source, "gemini");
 assert.equal(called.length, 1);
 assert.equal(called[0].url, "https://generativelanguage.googleapis.com/v1beta/interactions");
 assert.equal(called[0].options.headers["x-goog-api-key"], "test-key");
+const body = JSON.parse(called[0].options.body);
+assert.equal(body.model, "gemini-3.6-flash");
+assert.match(body.input, /Return JSON only/);
 
 if (oldKey) {
   process.env.GEMINI_API_KEY = oldKey;

@@ -138,7 +138,7 @@ Gemini is the recommended default for free MVP testing:
 ```text
 AI_PROVIDER=gemini
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-3.5-flash
+GEMINI_MODEL=gemini-3.6-flash
 ```
 
 OpenAI remains available:

@@ -2,7 +2,8 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateAiRiskBrief } from "./src/ai-provider.mjs";
+import { generateAiRiskBrief, pickProvider } from "./src/ai-provider.mjs";
+import { runIcebergAgent } from "./src/iceberg-agent.mjs";
 import { fetchMarketSnapshot } from "./src/market-data.mjs";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
@@ -39,10 +40,30 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/ai-status") {
+      const check = url.searchParams.get("check") === "1";
+      const health = check ? await checkAiHealth() : null;
+      sendJson(response, 200, {
+        provider: pickProvider(),
+        hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+        hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
+        geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+        health,
+      });
+      return;
+    }
+
     if (url.pathname === "/api/ai-risk-brief" && request.method === "POST") {
       const body = await readJson(request);
       const brief = await generateAiRiskBrief(body.report);
       sendJson(response, 200, brief);
+      return;
+    }
+
+    if (url.pathname === "/api/agent-chat" && request.method === "POST") {
+      const body = await readJson(request);
+      const result = await runIcebergAgent(body);
+      sendJson(response, 200, result);
       return;
     }
 
@@ -106,4 +127,39 @@ function sendJson(response, status, data) {
 function sendText(response, status, text) {
   response.writeHead(status, { "Content-Type": "text/plain; charset=utf-8" });
   response.end(text);
+}
+
+async function checkAiHealth() {
+  const provider = pickProvider();
+  if (provider !== "gemini") return { ok: provider !== "local", provider };
+
+  try {
+    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        input: "Return JSON only: {\"ok\": true}",
+      }),
+    });
+
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      return {
+        ok: false,
+        provider,
+        status: response.status,
+        reason: detail?.error?.status || "request_failed",
+        message: detail?.error?.message || `Gemini health check failed with ${response.status}.`,
+      };
+    }
+
+    return { ok: true, provider };
+  } catch (error) {
+    return { ok: false, provider, reason: "network_error", message: String(error?.message || error) };
+  }
 }

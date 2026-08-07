@@ -23,6 +23,7 @@
 
         <nav class="nav-tabs" aria-label="Primary">
           <button class="nav-tab active" data-tab="advisor" type="button">Ask</button>
+          <button class="nav-tab" data-tab="portfolio" type="button">Portfolio</button>
           <button class="nav-tab" data-tab="strategies" type="button">Strategies</button>
           <button class="nav-tab" data-tab="journal" type="button">History</button>
           <button class="nav-tab" data-tab="rules" type="button">Settings</button>
@@ -55,6 +56,7 @@
           <div class="topbar-actions">
             <span class="system-chip">Risk-first</span>
             <span class="system-chip">Kelly sizing</span>
+            <span id="aiProviderStatus" class="system-chip">AI: checking</span>
             <button id="resetDemo" class="ghost-button" type="button">Reset</button>
           </div>
         </section>
@@ -306,6 +308,127 @@
                   <span class="pill">backend assisted</span>
                 </div>
                 <div id="aiBrief" class="ai-brief"></div>
+              </section>
+            </section>
+          </div>
+        </section>
+
+        <section id="portfolioTab" class="tab-panel">
+          <section class="panel portfolio-hero">
+            <div>
+              <p class="eyebrow">Portfolio Advisor Lab</p>
+              <h3>Turn your holdings into a calmer pre-trade context</h3>
+              <p>Iceberg looks for concentration, missing ballast, cash pressure, and trim candidates before it sizes the next idea.</p>
+            </div>
+            <span class="pill">Astor-style parity lab</span>
+          </section>
+
+          <div class="portfolio-layout">
+            <form id="portfolioForm" class="panel portfolio-form">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Manual Account</p>
+                  <h3>Your portfolio snapshot</h3>
+                </div>
+                <button id="loadPortfolioDemo" class="ghost-button" type="button">Demo</button>
+              </div>
+
+              <div class="form-grid">
+                <label>
+                  Risk profile
+                  <select id="portfolioRisk" name="riskProfile">
+                    <option value="conservative">Conservative</option>
+                    <option value="balanced" selected>Balanced</option>
+                    <option value="aggressive">Aggressive</option>
+                  </select>
+                </label>
+                <label>
+                  Time horizon
+                  <select id="portfolioHorizon" name="timeHorizon">
+                    <option value="short">Under 1 year</option>
+                    <option value="medium">1-5 years</option>
+                    <option value="long" selected>5+ years</option>
+                  </select>
+                </label>
+                <label>
+                  Cash available
+                  <input id="portfolioCash" name="cash" type="number" min="0" step="1" placeholder="5000" />
+                </label>
+                <label>
+                  Monthly contribution
+                  <input id="portfolioContribution" name="monthlyContribution" type="number" min="0" step="1" placeholder="1000" />
+                </label>
+              </div>
+
+              <label>
+                Holdings
+                <textarea id="portfolioHoldings" name="holdings" rows="8" spellcheck="false" placeholder="NVDA, NVIDIA, 10, 120, AI / Semiconductors&#10;VTI, US Total Market ETF, 20, 260, Broad market"></textarea>
+              </label>
+
+              <button class="primary-button" type="submit">Analyze portfolio</button>
+            </form>
+
+            <section class="portfolio-results" aria-live="polite">
+              <section class="metrics-grid portfolio-metrics">
+                <article class="metric-card">
+                  <span>Total value</span>
+                  <strong id="portfolioTotalValue">--</strong>
+                  <small>cash plus holdings</small>
+                </article>
+                <article class="metric-card">
+                  <span>Risk score</span>
+                  <strong id="portfolioRiskScore">--</strong>
+                  <small id="portfolioRiskLabel">waiting</small>
+                </article>
+                <article class="metric-card">
+                  <span>Largest position</span>
+                  <strong id="portfolioLargest">--</strong>
+                  <small id="portfolioLargestWeight">--</small>
+                </article>
+                <article class="metric-card">
+                  <span>Cash weight</span>
+                  <strong id="portfolioCashWeight">--</strong>
+                  <small>dry powder</small>
+                </article>
+              </section>
+
+              <section class="portfolio-board">
+                <article class="panel portfolio-card">
+                  <p class="eyebrow">Portfolio Pulse</p>
+                  <h3>What matters today</h3>
+                  <div id="portfolioPulse" class="advisor-list"></div>
+                </article>
+                <article class="panel portfolio-card">
+                  <p class="eyebrow">Financial Plan</p>
+                  <h3>Next calm moves</h3>
+                  <div id="portfolioPlan" class="advisor-list"></div>
+                </article>
+                <article class="panel portfolio-card">
+                  <p class="eyebrow">What To Sell</p>
+                  <h3>Trim candidates</h3>
+                  <div id="portfolioSellList" class="advisor-list"></div>
+                </article>
+                <article class="panel portfolio-card">
+                  <p class="eyebrow">Tickers For You</p>
+                  <h3>Research watchlist</h3>
+                  <div id="portfolioTickerIdeas" class="ticker-ideas"></div>
+                </article>
+              </section>
+
+              <section class="panel portfolio-research-card">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Stock Research</p>
+                    <h3>Portfolio-aware dossier</h3>
+                  </div>
+                  <div class="research-inline">
+                    <input id="portfolioResearchSymbol" autocomplete="off" placeholder="NVDA" />
+                    <button id="portfolioResearchButton" class="secondary-button" type="button">Research</button>
+                  </div>
+                </div>
+                <div id="portfolioResearchOutput" class="research-output">
+                  Pick a ticker to see how a new trade changes your current portfolio risk.
+                </div>
               </section>
             </section>
           </div>

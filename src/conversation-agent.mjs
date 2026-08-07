@@ -30,6 +30,35 @@ export function parseBeginnerTradeMessage(message, defaults = {}) {
   };
 }
 
+export function classifyBeginnerIntent(message) {
+  const text = String(message || "").trim().toLowerCase();
+  if (!text) return "empty";
+
+  const greetingOnly = /^(hi|hello|hey|yo|你好|嗨|哈喽|hello there)[\s!.?，。]*$/.test(text);
+  const asksIdentity = /\b(who are you|what are you|what is iceberg|introduce yourself)\b|你是谁|你是干嘛|这是什么/.test(text);
+  const asksHelp = /\b(help|how do i use|what can you do|how does this work|example)\b|怎么用|你能做什么|如何使用|帮我/.test(text);
+
+  if (asksIdentity) return "identity";
+  if (asksHelp) return "help";
+  if (greetingOnly) return "greeting";
+  return "trade";
+}
+
+export function beginnerIntro(intent = "identity") {
+  const base =
+    "I am Iceberg, a pre-trade risk layer. I help you slow down before buying by checking position size, downside, concentration, Kelly sizing, and protection rules. I am education-only, not a financial advisor.";
+
+  if (intent === "greeting") {
+    return `${base} Tell me a ticker and the amount you are thinking about, for example: "I want to buy NVDA with $1,000."`;
+  }
+
+  if (intent === "help") {
+    return `${base} You can say: "I want to buy NVDA with $1,000", or add context like account size, cash, current shares, and current price. If you saved a Portfolio, I will use that context automatically.`;
+  }
+
+  return `${base} My job is to make impulsive trades harder and planned trades clearer. Start with a ticker, planned amount, and price if you have it.`;
+}
+
 export function beginnerMissingFields(trade) {
   const missing = [];
   if (!trade.symbol) missing.push("ticker");
@@ -87,7 +116,36 @@ function extractSymbol(text) {
   const words = text.match(/\b[A-Z]{1,5}\b/g) || [];
   const ignored = new Set(["I", "AI", "USD", "ETF"]);
   const candidate = words.find((word) => !ignored.has(word));
-  return candidate || "";
+  if (candidate) return candidate;
+
+  const lowerIgnored = new Set([
+    "a",
+    "an",
+    "buy",
+    "cash",
+    "day",
+    "for",
+    "hold",
+    "long",
+    "now",
+    "put",
+    "sell",
+    "the",
+    "this",
+    "usd",
+    "with",
+  ]);
+  const contextMatch = text.match(/\b(?:buy|sell|trade|research|watch|ticker|symbol|stock|买|卖)\s+\$?([a-z]{1,5})\b/);
+  if (contextMatch && !lowerIgnored.has(contextMatch[1].toLowerCase())) {
+    return contextMatch[1].toUpperCase();
+  }
+
+  const trimmed = text.trim();
+  if (/^[a-z]{1,5}$/i.test(trimmed) && !lowerIgnored.has(trimmed.toLowerCase())) {
+    return trimmed.toUpperCase();
+  }
+
+  return "";
 }
 
 function findFieldAmount(text, phrases) {
@@ -106,6 +164,8 @@ function findPlannedAmount(text) {
     "plan to buy",
     "planning to buy",
     "want to buy",
+    "want to put",
+    "put",
     "buy",
     "spend",
     "budget",
@@ -123,8 +183,11 @@ function findPlannedAmount(text) {
     if (match) return String(scaleAmount(match[1], match[2]));
   }
 
-  const withAmount = text.match(/\b(?:with|for)\s*(?:\$|usd\s*)?(\d+(?:\.\d+)?)(?:\s*(k|m))?\s*(?:dollars|usd)\b/i);
-  if (withAmount) return String(scaleAmount(withAmount[1], withAmount[2]));
+  const withAmount = text.match(/\b(?:with|for)\s*(?:\$|usd\s*)?(\d+(?:\.\d+)?)(?:\s*(k|m))?(?:\s*(?:dollars|usd))?\b/i);
+  if (withAmount) {
+    const amount = scaleAmount(withAmount[1], withAmount[2]);
+    if (amount >= 100) return String(amount);
+  }
 
   return "";
 }

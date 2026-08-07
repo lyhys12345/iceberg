@@ -1,8 +1,16 @@
 import { analyzeTrade, defaultRules } from "./risk-engine.mjs";
 import { analyzeAdvisorTrade } from "./advisor-engine.mjs";
 import { createAiRiskBrief } from "./ai-risk-layer.mjs";
-import { beginnerAdvice, beginnerMissingFields, beginnerQuestion, parseBeginnerTradeMessage } from "./conversation-agent.mjs";
+import { beginnerAdvice, beginnerIntro, beginnerMissingFields, beginnerQuestion, classifyBeginnerIntent, parseBeginnerTradeMessage } from "./conversation-agent.mjs";
 import { fetchMarketSnapshot, manualMarketSnapshot } from "./market-data.mjs";
+import {
+  analyzePortfolio,
+  buildResearchDossier,
+  demoPortfolio,
+  holdingsToText,
+  parseHoldingsText,
+  portfolioDefaultsForSymbol,
+} from "./portfolio-advisor.mjs";
 import { strategyCatalog } from "./strategy-catalog.mjs";
 
 const storageKeys = {
@@ -10,6 +18,7 @@ const storageKeys = {
   journal: "iceberg.journal.v1",
   advisorHistory: "iceberg.advisor-history.v1",
   advisorProfile: "iceberg.advisor-profile.v1",
+  portfolio: "iceberg.portfolio.v1",
   onboardingSeen: "iceberg.onboarding-seen.v1",
 };
 
@@ -42,6 +51,7 @@ const elements = {
   journalList: document.querySelector("#journalList"),
   clearJournal: document.querySelector("#clearJournal"),
   resetDemo: document.querySelector("#resetDemo"),
+  aiProviderStatus: document.querySelector("#aiProviderStatus"),
   todayChecks: document.querySelector("#todayChecks"),
   todayBlocks: document.querySelector("#todayBlocks"),
   riskSaved: document.querySelector("#riskSaved"),
@@ -86,6 +96,26 @@ const elements = {
   agentConversation: document.querySelector("#agentConversation"),
   quickPrompts: document.querySelectorAll("[data-prompt]"),
   strategyLibrary: document.querySelector("#strategyLibrary"),
+  portfolioForm: document.querySelector("#portfolioForm"),
+  loadPortfolioDemo: document.querySelector("#loadPortfolioDemo"),
+  portfolioRisk: document.querySelector("#portfolioRisk"),
+  portfolioHorizon: document.querySelector("#portfolioHorizon"),
+  portfolioCash: document.querySelector("#portfolioCash"),
+  portfolioContribution: document.querySelector("#portfolioContribution"),
+  portfolioHoldings: document.querySelector("#portfolioHoldings"),
+  portfolioTotalValue: document.querySelector("#portfolioTotalValue"),
+  portfolioRiskScore: document.querySelector("#portfolioRiskScore"),
+  portfolioRiskLabel: document.querySelector("#portfolioRiskLabel"),
+  portfolioLargest: document.querySelector("#portfolioLargest"),
+  portfolioLargestWeight: document.querySelector("#portfolioLargestWeight"),
+  portfolioCashWeight: document.querySelector("#portfolioCashWeight"),
+  portfolioPulse: document.querySelector("#portfolioPulse"),
+  portfolioPlan: document.querySelector("#portfolioPlan"),
+  portfolioSellList: document.querySelector("#portfolioSellList"),
+  portfolioTickerIdeas: document.querySelector("#portfolioTickerIdeas"),
+  portfolioResearchSymbol: document.querySelector("#portfolioResearchSymbol"),
+  portfolioResearchButton: document.querySelector("#portfolioResearchButton"),
+  portfolioResearchOutput: document.querySelector("#portfolioResearchOutput"),
 };
 
 init();
@@ -96,6 +126,9 @@ function init() {
   loadRulesIntoForm();
   renderJournal();
   renderStrategyLibrary();
+  loadPortfolioIntoForm();
+  renderPortfolioAnalysis();
+  hydrateAiStatus();
   updateSummary();
   renderOnboarding();
   if (!loadAdvisorProfileIntoForm()) {
@@ -157,6 +190,17 @@ function bindForms() {
     seedAdvisorExample();
     resetAdvisorReport();
   });
+  elements.portfolioForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    renderPortfolioAnalysis();
+  });
+  elements.loadPortfolioDemo.addEventListener("click", () => {
+    fillPortfolioForm(demoPortfolio);
+    renderPortfolioAnalysis();
+  });
+  elements.portfolioResearchButton.addEventListener("click", async () => {
+    await researchPortfolioTicker();
+  });
 
   elements.rulesForm.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -209,15 +253,192 @@ async function researchAdvisorTicker() {
   }
 }
 
+function loadPortfolioIntoForm() {
+  const saved = loadPortfolio();
+  fillPortfolioForm(saved || demoPortfolio);
+}
+
+function fillPortfolioForm(portfolio) {
+  elements.portfolioRisk.value = portfolio.riskProfile || "balanced";
+  elements.portfolioHorizon.value = portfolio.timeHorizon || "long";
+  elements.portfolioCash.value = portfolio.cash || "";
+  elements.portfolioContribution.value = portfolio.monthlyContribution || "";
+  elements.portfolioHoldings.value = holdingsToText(portfolio.holdings || []);
+}
+
+function readPortfolioForm() {
+  const formData = new FormData(elements.portfolioForm);
+  return {
+    riskProfile: formData.get("riskProfile"),
+    timeHorizon: formData.get("timeHorizon"),
+    cash: formData.get("cash"),
+    monthlyContribution: formData.get("monthlyContribution"),
+    holdings: parseHoldingsText(formData.get("holdings")),
+  };
+}
+
+function loadPortfolio() {
+  try {
+    return JSON.parse(localStorage.getItem(storageKeys.portfolio) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function savePortfolio(portfolio) {
+  localStorage.setItem(storageKeys.portfolio, JSON.stringify(portfolio));
+}
+
+function renderPortfolioAnalysis() {
+  const portfolio = readPortfolioForm();
+  savePortfolio(portfolio);
+  const analysis = analyzePortfolio(portfolio);
+
+  elements.portfolioTotalValue.textContent = formatCurrency(analysis.totalValue);
+  elements.portfolioRiskScore.textContent = analysis.riskScore;
+  elements.portfolioRiskScore.dataset.level = analysis.riskScore >= 72 ? "avoid" : analysis.riskScore >= 48 ? "reduce" : "consider";
+  elements.portfolioRiskLabel.textContent = `${analysis.riskLabel} portfolio risk`;
+  elements.portfolioLargest.textContent = analysis.largest ? analysis.largest.symbol : "--";
+  elements.portfolioLargestWeight.textContent = analysis.largest ? `${formatPercent(analysis.largest.weight)} of account` : "--";
+  elements.portfolioCashWeight.textContent = formatPercent(analysis.cashWeight);
+  elements.portfolioPulse.innerHTML = renderAdvisorItems(analysis.pulse);
+  elements.portfolioPlan.innerHTML = renderAdvisorItems(analysis.financialPlan);
+  elements.portfolioSellList.innerHTML = renderAdvisorItems(analysis.whatToSell);
+  elements.portfolioTickerIdeas.innerHTML = analysis.tickersForYou.map(tickerIdea).join("");
+
+  return analysis;
+}
+
+async function researchPortfolioTicker() {
+  const symbol = elements.portfolioResearchSymbol.value.trim().toUpperCase();
+  if (!symbol) {
+    elements.portfolioResearchOutput.textContent = "Enter a ticker first.";
+    return;
+  }
+
+  elements.portfolioResearchButton.disabled = true;
+  elements.portfolioResearchOutput.textContent = `Researching ${symbol} against your portfolio...`;
+
+  const analysis = renderPortfolioAnalysis();
+  let market = null;
+  try {
+    market = await fetchMarketSnapshot(symbol);
+  } catch {
+    market = null;
+  } finally {
+    elements.portfolioResearchButton.disabled = false;
+  }
+
+  renderResearchDossier(buildResearchDossier(symbol, market, analysis));
+}
+
+function renderResearchDossier(dossier) {
+  elements.portfolioResearchOutput.innerHTML = `
+    <div class="research-dossier">
+      <div>
+        <span class="eyebrow">Ticker</span>
+        <strong>${escapeHtml(dossier.symbol)}</strong>
+      </div>
+      <div>
+        <span class="eyebrow">Market facts</span>
+        ${dossier.facts.map((fact) => `<p>${escapeHtml(fact)}</p>`).join("")}
+      </div>
+      <div>
+        <span class="eyebrow">Portfolio fit</span>
+        ${dossier.fit.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+      </div>
+      <div>
+        <span class="eyebrow">Questions before trade</span>
+        <ul>${dossier.questions.map((question) => `<li>${escapeHtml(question)}</li>`).join("")}</ul>
+      </div>
+    </div>
+  `;
+}
+
+function renderAdvisorItems(items) {
+  return items
+    .map(
+      (item) => `
+        <article class="advisor-item">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.detail)}</span>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function tickerIdea(item) {
+  return `
+    <article class="ticker-idea">
+      <strong>${escapeHtml(item.symbol)}</strong>
+      <span>${escapeHtml(item.label)}</span>
+      <small>${escapeHtml(item.detail)}</small>
+    </article>
+  `;
+}
+
 async function askBeginnerAgent(message) {
   const text = String(message || "").trim();
   if (!text) return;
 
   appendAgentMessage("user", text);
   elements.agentPrompt.value = "";
-  appendAgentMessage("assistant", "Let me check the trade, size, and downside first...");
+  appendAgentMessage("assistant", "Iceberg Agent is checking intent, portfolio context, market data, sizing, and downside...");
+
+  try {
+    const result = await callIcebergAgent(text);
+    renderAgentResult(result);
+  } catch {
+    await runLocalBeginnerAgent(text);
+  }
+}
+
+async function callIcebergAgent(message) {
+  const response = await fetch("/api/agent-chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      defaults: readTrustedAdvisorDefaults(),
+      portfolio: readPortfolioForm(),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Agent API unavailable");
+  }
+
+  return response.json();
+}
+
+function renderAgentResult(result) {
+  replaceLastAssistantMessage(result.message || "I could not complete the agent check.");
+
+  if (result.trade) {
+    fillAdvisorForm(result.trade);
+  }
+
+  if (result.market) {
+    state.marketSnapshot = result.market;
+    renderMarketSnapshot(result.market);
+  }
+
+  if (result.report) {
+    state.latestAdvisorReport = result.report;
+    renderAdvisorReport(result.report, result.aiBrief);
+  }
+}
+
+async function runLocalBeginnerAgent(text) {
+  const intent = classifyBeginnerIntent(text);
+  if (intent !== "trade") {
+    replaceLastAssistantMessage(beginnerIntro(intent));
+    return;
+  }
 
   const parsed = parseBeginnerTradeMessage(text, readTrustedAdvisorDefaults());
+  applyPortfolioContext(parsed, text);
   let marketSearchNote = "";
 
   if (parsed.symbol && !parsed.currentPrice) {
@@ -227,12 +448,21 @@ async function askBeginnerAgent(message) {
       state.marketSnapshot = snapshot;
       renderMarketSnapshot(snapshot);
     } catch (error) {
-      state.marketSnapshot = null;
-      marketSearchNote = `${marketSearchFailureMessage(parsed.symbol, error)} `;
+      const portfolioPrice = portfolioPriceForSymbol(parsed.symbol);
+      if (portfolioPrice) {
+        const fallback = manualMarketSnapshot(parsed.symbol, portfolioPrice);
+        parsed.currentPrice = String(portfolioPrice);
+        state.marketSnapshot = fallback;
+        renderMarketSnapshot(fallback);
+        marketSearchNote = `I could not reach live market data, so I used your portfolio's saved ${parsed.symbol} price as a temporary estimate. `;
+      } else {
+        state.marketSnapshot = null;
+        marketSearchNote = `${marketSearchFailureMessage(parsed.symbol, error)} `;
+      }
     }
   }
 
-  const searchFailed = Boolean(marketSearchNote);
+  const searchFailed = Boolean(marketSearchNote) && !positiveValue(parsed.currentPrice);
   const missing = beginnerMissingFields(parsed);
   fillAdvisorForm(parsed);
 
@@ -243,6 +473,39 @@ async function askBeginnerAgent(message) {
 
   const report = generateAdvisorPlan();
   replaceLastAssistantMessage(`${beginnerAdvice(report)} I filled the advanced model below so you can inspect the assumptions.`);
+}
+
+function portfolioPriceForSymbol(symbol) {
+  const portfolio = loadPortfolio();
+  const holding = portfolio?.holdings?.find((item) => String(item.symbol || "").toUpperCase() === String(symbol || "").toUpperCase());
+  const price = Number(holding?.price || 0);
+  return Number.isFinite(price) && price > 0 ? price : 0;
+}
+
+function positiveValue(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0;
+}
+
+function applyPortfolioContext(parsed, message = "") {
+  if (!parsed.symbol) return;
+  const portfolio = loadPortfolio();
+  if (!portfolio) return;
+
+  const defaults = portfolioDefaultsForSymbol(portfolio, parsed.symbol);
+  const explicit = explicitPortfolioFields(message);
+  if (!explicit.accountValue && defaults.accountValue) parsed.accountValue = defaults.accountValue;
+  if (!explicit.cashAvailable && defaults.cashAvailable) parsed.cashAvailable = defaults.cashAvailable;
+  if (!explicit.currentShares && defaults.currentShares) parsed.currentShares = defaults.currentShares;
+}
+
+function explicitPortfolioFields(message) {
+  const text = String(message || "").toLowerCase();
+  return {
+    accountValue: /\b(account|portfolio|net worth)\b|账户|本金|资金/.test(text),
+    cashAvailable: /\b(cash|available cash|cash available)\b|现金|可用资金|可用现金/.test(text),
+    currentShares: /\b(current shares|already own|already hold|holding|hold|own)\b|持有|已有|现在有/.test(text),
+  };
 }
 
 function appendAgentMessage(role, text) {
@@ -315,9 +578,9 @@ function readAdvisorForm() {
   };
 }
 
-function renderAdvisorReport(report) {
+function renderAdvisorReport(report, providedAiBrief = null) {
   const { decision, riskScore, sizing, kelly, scenarios, protection, entries, flags, market } = report;
-  const aiBrief = createAiRiskBrief(report);
+  const aiBrief = providedAiBrief || createAiRiskBrief(report);
 
   document.body.classList.add("has-advisor-report");
   elements.advisorRiskScore.textContent = riskScore;
@@ -370,7 +633,9 @@ function renderAdvisorReport(report) {
       : `<p class="empty-state">No entry plan because the model did not find a safe size.</p>`;
 
   renderAiBrief(aiBrief);
-  hydrateAiRiskBrief(report);
+  if (!providedAiBrief) {
+    hydrateAiRiskBrief(report);
+  }
 }
 
 async function hydrateAiRiskBrief(report) {
@@ -386,6 +651,32 @@ async function hydrateAiRiskBrief(report) {
     renderAiBrief(brief);
   } catch {
     // Keep the local deterministic brief if the backend or OpenAI is unavailable.
+  }
+}
+
+async function hydrateAiStatus() {
+  if (!elements.aiProviderStatus) return;
+
+  try {
+    const response = await fetch("/api/ai-status?check=1");
+    if (!response.ok) throw new Error("AI status unavailable");
+    const status = await response.json();
+    if (status.health && status.health.ok === false) {
+      elements.aiProviderStatus.textContent = `AI: ${status.provider} auth issue`;
+      elements.aiProviderStatus.dataset.provider = "local";
+      elements.aiProviderStatus.title = status.health.message || "AI provider health check failed.";
+      return;
+    }
+    const providerLabels = {
+      gemini: `AI: Gemini ${status.geminiModel || ""}`.trim(),
+      openai: "AI: OpenAI",
+      local: "AI: Local fallback",
+    };
+    elements.aiProviderStatus.textContent = providerLabels[status.provider] || "AI: Local fallback";
+    elements.aiProviderStatus.dataset.provider = status.provider || "local";
+  } catch {
+    elements.aiProviderStatus.textContent = "AI: local page";
+    elements.aiProviderStatus.dataset.provider = "local";
   }
 }
 
@@ -983,6 +1274,7 @@ function resetDemo() {
   localStorage.removeItem(storageKeys.journal);
   localStorage.removeItem(storageKeys.advisorHistory);
   localStorage.removeItem(storageKeys.advisorProfile);
+  localStorage.removeItem(storageKeys.portfolio);
   localStorage.removeItem(storageKeys.onboardingSeen);
   loadRulesIntoForm();
   seedDemoTrade();
@@ -1001,6 +1293,8 @@ function resetDemo() {
   elements.saveBlocked.disabled = true;
   seedAdvisorDefaults();
   resetAdvisorReport();
+  fillPortfolioForm(demoPortfolio);
+  renderPortfolioAnalysis();
   renderJournal();
   updateSummary();
   renderOnboarding();

@@ -131,13 +131,15 @@ function normalizeAdvisorInput(input, market) {
 function scoreRisk(trade, market, kelly, futurePositionPercent) {
   let score = 25;
   const plannedExposure = trade.accountValue > 0 ? trade.plannedBudget / trade.accountValue : 0;
+  const impulseTrade = hasImpulseLanguage(trade.thesis);
 
   if (kelly.edge <= 0) score += 30;
   if (kelly.fractionalKelly < 0.01) score += 18;
   if (plannedExposure > 0.5) score += 18;
   if (plannedExposure > 0.25) score += 10;
   if (trade.plannedBudget > trade.cashAvailable) score += 8;
-  if (hasImpulseLanguage(trade.thesis)) score += 12;
+  if (impulseTrade) score += 18;
+  if (impulseTrade && plannedExposure > 0.15) score += 14;
   if (hasUnverifiedEdge(trade)) score += 18;
   if (futurePositionPercent > 0.25) score += 24;
   if (futurePositionPercent > 0.15) score += 12;
@@ -278,6 +280,10 @@ function hasImpulseLanguage(thesis) {
     "make back",
     "recover",
     "fomo",
+    "afraid to miss",
+    "miss out",
+    "fear of missing",
+    "chasing",
     "moon",
     "梭哈",
     "满仓",

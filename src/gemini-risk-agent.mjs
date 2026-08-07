@@ -1,27 +1,18 @@
 import { createAiRiskBrief } from "./ai-risk-layer.mjs";
 
-const riskBriefSchema = {
-  type: "object",
-  additionalProperties: false,
-  required: ["pattern", "confidence", "missingItems", "signals", "strategyName", "strategySteps", "summary", "reflectionPrompt"],
-  properties: {
-    pattern: { type: "string" },
-    confidence: { type: "number", minimum: 0, maximum: 1 },
-    missingItems: { type: "array", items: { type: "string" } },
-    signals: { type: "array", items: { type: "string" } },
-    strategyName: { type: "string" },
-    strategySteps: { type: "array", items: { type: "string" } },
-    summary: { type: "string" },
-    reflectionPrompt: { type: "string" },
-  },
-};
-
 export async function generateGeminiRiskBrief(report, fetchImpl = fetch) {
   if (!process.env.GEMINI_API_KEY) {
     return withSource(createAiRiskBrief(report), "local");
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  const prompt = [
+    "You are Iceberg, a beginner-friendly pre-trade risk agent.",
+    "Analyze risk, sizing, downside, protection, and the supplied strategy recommendation in plain English.",
+    "Do not predict prices. Do not say a stock is a buy or sell.",
+    "Keep advice conservative and based only on the supplied report. Use the supplied strategy unless the report clearly says no safe size.",
+    JSON.stringify(summarizeReportForAi(report)),
+  ].join("\n\n");
   const response = await fetchImpl("https://generativelanguage.googleapis.com/v1beta/interactions", {
     method: "POST",
     headers: {
@@ -30,18 +21,7 @@ export async function generateGeminiRiskBrief(report, fetchImpl = fetch) {
     },
     body: JSON.stringify({
       model,
-      input: [
-        "You are Iceberg, a beginner-friendly pre-trade risk agent.",
-        "Analyze risk, sizing, downside, protection, and the supplied strategy recommendation in plain English.",
-        "Do not predict prices. Do not say a stock is a buy or sell.",
-        "Keep advice conservative and based only on the supplied report. Use the supplied strategy unless the report clearly says no safe size.",
-        JSON.stringify(summarizeReportForAi(report)),
-      ].join("\n\n"),
-      response_format: {
-        type: "text",
-        mime_type: "application/json",
-        schema: riskBriefSchema,
-      },
+      input: `${prompt}\n\nReturn JSON only with keys: pattern, confidence, missingItems, signals, strategyName, strategySteps, summary, reflectionPrompt.`,
     }),
   });
 
@@ -58,6 +38,11 @@ export function parseGeminiJson(data) {
   const outputText =
     data.output_text ||
     data.output?.text ||
+    data.steps
+      ?.flatMap((step) => step.content || [])
+      ?.map((content) => content.text)
+      ?.filter(Boolean)
+      ?.join("") ||
     data.candidates?.[0]?.content?.parts
       ?.map((part) => part.text)
       ?.filter(Boolean)
@@ -67,7 +52,21 @@ export function parseGeminiJson(data) {
     throw new Error("Gemini response did not include structured text.");
   }
 
-  return JSON.parse(outputText);
+  return parseJsonFromText(outputText);
+}
+
+function parseJsonFromText(text) {
+  const trimmed = String(text || "").trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidate = fenced?.[1] || trimmed;
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+
+  if (start < 0 || end < start) {
+    throw new Error("Gemini response did not include JSON.");
+  }
+
+  return JSON.parse(candidate.slice(start, end + 1));
 }
 
 function summarizeReportForAi(report) {
