@@ -384,13 +384,16 @@ async function askBeginnerAgent(message) {
 
   appendAgentMessage("user", text);
   elements.agentPrompt.value = "";
-  appendAgentMessage("assistant", "Iceberg Agent is checking intent, portfolio context, market data, sizing, and downside...");
+  appendAgentLoading();
+  setAgentLoading(true);
 
   try {
     const result = await callIcebergAgent(text);
     renderAgentResult(result);
   } catch {
     await runLocalBeginnerAgent(text);
+  } finally {
+    setAgentLoading(false);
   }
 }
 
@@ -493,13 +496,22 @@ function applyPortfolioContext(parsed, message = "") {
   if (!portfolio) return;
 
   const defaults = portfolioDefaultsForSymbol(portfolio, parsed.symbol);
-  const explicit = explicitPortfolioFields(message);
+  const explicit = explicitPortfolioFieldsSafe(message);
   if (!explicit.accountValue && defaults.accountValue) parsed.accountValue = defaults.accountValue;
   if (!explicit.cashAvailable && defaults.cashAvailable) parsed.cashAvailable = defaults.cashAvailable;
   if (!explicit.currentShares && defaults.currentShares) parsed.currentShares = defaults.currentShares;
 }
 
 function explicitPortfolioFields(message) {
+  const text = String(message || "").toLowerCase();
+  return {
+    accountValue: /\b(account|portfolio|net worth)\b|账户|本金|资金/.test(text),
+    cashAvailable: /\b(cash|available cash|cash available)\b|现金|可用资金|可用现金/.test(text),
+    currentShares: /\b(current shares|already own|already hold|holding|hold|own)\b|持有|已有|现在有/.test(text),
+  };
+}
+
+function explicitPortfolioFieldsSafe(message) {
   const text = String(message || "").toLowerCase();
   return {
     accountValue: /\b(account|portfolio|net worth)\b|账户|本金|资金/.test(text),
@@ -521,13 +533,51 @@ function appendAgentMessage(role, text) {
   elements.agentConversation.scrollTop = elements.agentConversation.scrollHeight;
 }
 
+function appendAgentLoading() {
+  elements.agentConversation.insertAdjacentHTML(
+    "beforeend",
+    `
+      <article class="agent-message assistant loading" aria-live="polite">
+        <strong>Iceberg</strong>
+        <div class="agent-thinking">
+          <span class="thinking-orb" aria-hidden="true"></span>
+          <div>
+            <p>Iceberg is thinking<span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span></p>
+            <ol class="thinking-steps" aria-label="Agent progress">
+              <li>Reading your trade intent</li>
+              <li>Checking portfolio context and market data</li>
+              <li>Estimating size, downside, and protection</li>
+            </ol>
+          </div>
+        </div>
+      </article>
+    `,
+  );
+  elements.agentConversation.scrollTop = elements.agentConversation.scrollHeight;
+}
+
 function replaceLastAssistantMessage(text) {
-  const messages = [...elements.agentConversation.querySelectorAll(".agent-message.assistant p")];
-  const last = messages.at(-1);
-  if (last) {
-    last.textContent = text;
+  const assistantMessages = [...elements.agentConversation.querySelectorAll(".agent-message.assistant")];
+  const lastMessage = assistantMessages.at(-1);
+  const last = lastMessage?.querySelector("p");
+  if (lastMessage && last) {
+    lastMessage.classList.remove("loading");
+    lastMessage.innerHTML = `
+      <strong>Iceberg</strong>
+      <p>${escapeHtml(text)}</p>
+    `;
   } else {
     appendAgentMessage("assistant", text);
+  }
+}
+
+function setAgentLoading(isLoading) {
+  const button = elements.agentForm.querySelector('button[type="submit"]');
+  elements.agentForm.setAttribute("aria-busy", String(isLoading));
+  elements.agentPrompt.disabled = isLoading;
+  if (button) {
+    button.disabled = isLoading;
+    button.textContent = isLoading ? "Thinking..." : "Ask Iceberg";
   }
 }
 

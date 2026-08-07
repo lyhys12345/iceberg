@@ -573,6 +573,104 @@ summary {
   color: #ffffff;
 }
 
+.agent-message.loading {
+  width: min(520px, 92%);
+}
+
+.agent-thinking {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.thinking-orb {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0 18%, var(--ice-strong) 34%, var(--blue) 72%);
+  box-shadow:
+    0 0 0 4px rgba(101, 223, 255, 0.12),
+    0 0 24px rgba(101, 223, 255, 0.42);
+  animation: thinkingPulse 1.2s ease-in-out infinite;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.thinking-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.45;
+  animation: thinkingDot 1s ease-in-out infinite;
+}
+
+.thinking-dots i:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.thinking-dots i:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+.thinking-steps {
+  display: grid;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.agent-form[aria-busy="true"] {
+  opacity: 0.92;
+}
+
+.agent-form[aria-busy="true"] textarea {
+  cursor: progress;
+}
+
+@keyframes thinkingPulse {
+  0%,
+  100% {
+    transform: scale(0.86);
+    opacity: 0.72;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes thinkingDot {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-orb,
+  .thinking-dots i {
+    animation: none;
+  }
+}
+
 .agent-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 164px;
@@ -2484,4 +2582,810 @@ body:not(.has-advisor-report) .metric-card:nth-child(n + 3) {
   .nav-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* Neon Ice skin: darker, calmer, and more premium. */
+:root {
+  color-scheme: dark;
+  --ink: #f4fbff;
+  --ink-soft: #c9e7f7;
+  --muted: #7f9bb0;
+  --muted-strong: #a9c3d6;
+  --line: rgba(101, 223, 255, 0.18);
+  --line-strong: rgba(101, 223, 255, 0.32);
+  --paper: #03070d;
+  --panel: rgba(8, 18, 31, 0.78);
+  --blue: #15a3ff;
+  --blue-deep: #087cff;
+  --blue-soft: rgba(21, 163, 255, 0.12);
+  --navy: #06111e;
+  --navy-soft: #0a1d30;
+  --ice: #d8fbff;
+  --ice-strong: #65dfff;
+  --green: #22e6a5;
+  --amber: #ffc857;
+  --red: #ff5277;
+  --neon-lime: #b9ff66;
+  --neon-magenta: #ff4fd8;
+  --desk-bg: #03070d;
+  --desk-panel: rgba(8, 18, 31, 0.74);
+  --desk-line: rgba(101, 223, 255, 0.2);
+  --desk-blue: #15a3ff;
+  --desk-ink: #f4fbff;
+  --shadow: 0 26px 80px rgba(0, 0, 0, 0.46), 0 0 42px rgba(21, 163, 255, 0.08);
+  --shadow-soft: 0 18px 52px rgba(0, 0, 0, 0.34), 0 0 24px rgba(101, 223, 255, 0.055);
+}
+
+html {
+  background: #03070d;
+}
+
+body {
+  background:
+    linear-gradient(rgba(101, 223, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(101, 223, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(135deg, #02050a 0%, #06111e 42%, #08192a 72%, #03070d 100%);
+  background-size: 44px 44px, 44px 44px, auto;
+  color: var(--ink);
+}
+
+body::before {
+  display: block;
+  background:
+    linear-gradient(112deg, rgba(21, 163, 255, 0.18), transparent 28%),
+    linear-gradient(252deg, rgba(34, 230, 165, 0.1), transparent 30%),
+    linear-gradient(180deg, transparent 0%, rgba(3, 7, 13, 0.88) 88%);
+}
+
+.sidebar {
+  border-bottom-color: rgba(101, 223, 255, 0.18);
+  background: rgba(3, 10, 18, 0.78);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06),
+    0 14px 48px rgba(0, 0, 0, 0.42),
+    inset 0 -1px 0 rgba(101, 223, 255, 0.12);
+}
+
+.brand-mark {
+  border-color: rgba(101, 223, 255, 0.64);
+  background:
+    linear-gradient(180deg, rgba(244, 251, 255, 0.98) 0 38%, rgba(101, 223, 255, 0.88) 39% 100%);
+  box-shadow:
+    0 0 0 1px rgba(21, 163, 255, 0.18),
+    0 0 28px rgba(101, 223, 255, 0.34),
+    0 14px 28px rgba(0, 0, 0, 0.38);
+}
+
+.brand-mark::after {
+  background: rgba(21, 163, 255, 0.32);
+  box-shadow: 0 0 18px rgba(101, 223, 255, 0.45);
+}
+
+.brand h1,
+.topbar h2,
+.panel h3,
+.status-panel strong {
+  color: #f8fdff;
+}
+
+.brand p,
+.topbar-subtitle,
+.panel p:not(.eyebrow),
+.strategy-summary {
+  color: var(--muted-strong);
+}
+
+.eyebrow,
+.sidebar .eyebrow,
+.status-panel .eyebrow,
+.chat-panel .eyebrow,
+.panel.chat-panel .eyebrow {
+  color: var(--ice-strong);
+  text-shadow: 0 0 18px rgba(101, 223, 255, 0.22);
+}
+
+.nav-tabs {
+  border-color: rgba(101, 223, 255, 0.18);
+  background: rgba(4, 12, 22, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.nav-tab {
+  color: rgba(201, 231, 247, 0.72);
+}
+
+.nav-tab.active,
+.nav-tab:hover {
+  border-color: rgba(101, 223, 255, 0.46);
+  background:
+    linear-gradient(180deg, rgba(21, 163, 255, 0.18), rgba(21, 163, 255, 0.08));
+  color: #f8fdff;
+  box-shadow:
+    0 0 0 1px rgba(21, 163, 255, 0.1),
+    0 0 24px rgba(21, 163, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.status-panel div,
+.panel,
+.topbar-actions .system-chip,
+.system-chip,
+.pill,
+.market-status,
+.research-output,
+.advisor-item,
+.ticker-idea,
+.market-grid div,
+.scenario-item,
+.strategy-card,
+.strategy-detail-grid div,
+.strategy-output,
+.strategy-step,
+.metric-card {
+  border-color: rgba(101, 223, 255, 0.18);
+  background: rgba(8, 18, 31, 0.72);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 48px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  color: var(--ink-soft);
+}
+
+.workspace {
+  position: relative;
+}
+
+.topbar {
+  color: var(--ink);
+}
+
+.topbar h2 {
+  text-shadow:
+    0 0 28px rgba(101, 223, 255, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.system-chip,
+.pill {
+  color: var(--ink-soft);
+}
+
+.system-chip[data-provider="gemini"] {
+  border-color: rgba(34, 230, 165, 0.44);
+  background: rgba(34, 230, 165, 0.1);
+  color: var(--green);
+  box-shadow: 0 0 24px rgba(34, 230, 165, 0.12);
+}
+
+.system-chip[data-provider="local"] {
+  border-color: rgba(255, 200, 87, 0.4);
+  background: rgba(255, 200, 87, 0.1);
+  color: var(--amber);
+}
+
+.chat-panel {
+  border-color: rgba(101, 223, 255, 0.3);
+  background:
+    linear-gradient(135deg, rgba(8, 20, 35, 0.92), rgba(5, 12, 22, 0.9) 48%, rgba(6, 28, 43, 0.86)),
+    #06111e;
+  color: var(--ink);
+  box-shadow:
+    0 32px 90px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(101, 223, 255, 0.12),
+    0 0 52px rgba(21, 163, 255, 0.12);
+}
+
+.chat-panel::before {
+  right: 34px;
+  bottom: -96px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0 34%, rgba(216, 251, 255, 0.72) 35% 65%, rgba(101, 223, 255, 0.5) 66% 100%);
+  filter: drop-shadow(0 0 28px rgba(101, 223, 255, 0.34));
+  opacity: 0.34;
+}
+
+.chat-panel::after {
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue), var(--ice-strong), var(--green), transparent 82%);
+  box-shadow: 0 0 22px rgba(101, 223, 255, 0.38);
+}
+
+.chat-panel h3,
+.panel.chat-panel h3 {
+  color: #f8fdff;
+  text-shadow: 0 0 24px rgba(101, 223, 255, 0.2);
+}
+
+.agent-message.assistant {
+  border-color: rgba(101, 223, 255, 0.2);
+  background: rgba(4, 12, 22, 0.78);
+}
+
+.agent-message.assistant p,
+.agent-message p,
+.advisor-item span,
+.ticker-idea small,
+.strategy-detail-grid p,
+.strategy-how,
+.strategy-output span,
+.strategy-playbook span,
+.strategy-step span,
+.ai-brief-card ul {
+  color: var(--muted-strong);
+}
+
+.agent-message.user {
+  border-color: rgba(101, 223, 255, 0.42);
+  background: linear-gradient(135deg, #087cff, #15a3ff);
+  color: #ffffff;
+  box-shadow: 0 0 28px rgba(21, 163, 255, 0.2);
+}
+
+input,
+select,
+textarea {
+  border-color: rgba(101, 223, 255, 0.2);
+  background: rgba(3, 10, 18, 0.74);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(169, 195, 214, 0.64);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(101, 223, 255, 0.76);
+  box-shadow:
+    0 0 0 3px rgba(21, 163, 255, 0.14),
+    0 0 26px rgba(101, 223, 255, 0.18);
+}
+
+label,
+legend {
+  color: var(--ink-soft);
+}
+
+.primary-button,
+.secondary-button,
+.danger-button,
+.ghost-button {
+  border-color: rgba(101, 223, 255, 0.24);
+  color: var(--ink);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #087cff, #15a3ff 56%, #65dfff);
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(101, 223, 255, 0.16),
+    0 18px 36px rgba(8, 124, 255, 0.24),
+    0 0 34px rgba(101, 223, 255, 0.18);
+}
+
+.secondary-button {
+  background: rgba(34, 230, 165, 0.1);
+  color: var(--green);
+}
+
+.danger-button {
+  border-color: rgba(255, 82, 119, 0.35);
+  background: rgba(255, 82, 119, 0.12);
+  color: var(--red);
+}
+
+.ghost-button {
+  background: rgba(8, 18, 31, 0.64);
+  color: var(--ink-soft);
+}
+
+.primary-button:hover,
+.secondary-button:hover,
+.danger-button:hover,
+.ghost-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.decision-panel {
+  border-color: rgba(101, 223, 255, 0.24);
+  background: rgba(7, 16, 28, 0.78);
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+}
+
+.decision-panel h3 {
+  color: var(--ink);
+}
+
+.decision-panel p:not(.eyebrow) {
+  color: var(--muted-strong);
+}
+
+.decision-score {
+  border: 1px solid rgba(101, 223, 255, 0.26);
+  background: linear-gradient(180deg, rgba(21, 163, 255, 0.9), rgba(8, 124, 255, 0.84));
+  color: #ffffff;
+  box-shadow:
+    0 0 28px rgba(21, 163, 255, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.decision-score[data-level="consider"] {
+  color: #ffffff;
+  background: linear-gradient(180deg, #22e6a5, #0e9f77);
+}
+
+.decision-score[data-level="reduce"] {
+  color: #06111e;
+  background: linear-gradient(180deg, #ffe08a, #ffc857);
+}
+
+.decision-score[data-level="avoid"] {
+  color: #ffffff;
+  background: linear-gradient(180deg, #ff6a8a, #ff5277);
+}
+
+.metric-card::before,
+.strategy-card::before {
+  background: linear-gradient(90deg, var(--ice-strong), var(--blue), transparent);
+  box-shadow: 0 0 18px rgba(101, 223, 255, 0.32);
+}
+
+.metric-card strong,
+.market-grid strong,
+.scenario-item strong,
+.research-dossier strong,
+.ticker-idea strong,
+.strategy-detail-grid strong,
+.strategy-output strong {
+  color: var(--ink);
+}
+
+.metric-card span,
+.metric-card small,
+.market-grid span,
+.scenario-item span,
+.scenario-item small {
+  color: var(--muted);
+}
+
+.scenario-item[data-level="positive"] strong,
+.scenario-item[data-level="positive"] small,
+#portfolioRiskScore[data-level="consider"] {
+  color: var(--green);
+}
+
+#portfolioRiskScore[data-level="reduce"] {
+  color: var(--amber);
+}
+
+#portfolioRiskScore[data-level="avoid"] {
+  color: var(--red);
+}
+
+.scenario-item[data-level="negative"] strong,
+.scenario-item[data-level="negative"] small {
+  color: var(--red);
+}
+
+.strategy-chip {
+  border-color: rgba(101, 223, 255, 0.28);
+  background: rgba(101, 223, 255, 0.09);
+  color: var(--ice-strong);
+}
+
+.strategy-formula {
+  border-color: rgba(185, 255, 102, 0.26);
+  background: rgba(185, 255, 102, 0.09);
+  color: var(--neon-lime);
+}
+
+.strategy-playbook b {
+  background: linear-gradient(135deg, var(--blue), var(--ice-strong));
+  color: #03101b;
+}
+
+.ai-brief-card {
+  border-color: rgba(101, 223, 255, 0.22);
+  background: rgba(8, 18, 31, 0.76);
+}
+
+.journal-action,
+.choice-group,
+.cooldown,
+.recommendation {
+  border-color: rgba(101, 223, 255, 0.2);
+  background: rgba(8, 18, 31, 0.68);
+  color: var(--ink-soft);
+}
+
+.recommendation strong {
+  color: var(--ice-strong);
+}
+
+.empty-state {
+  color: var(--muted);
+}
+
+@media (max-width: 760px) {
+  body {
+    background-size: 32px 32px, 32px 32px, auto;
+  }
+
+  .chat-panel::before {
+    opacity: 0.22;
+  }
+}
+
+/* Typography refinement: less billboard, more trading console. */
+body {
+  font-weight: 450;
+}
+
+.brand h1 {
+  font-size: 1.04rem;
+  font-weight: 720;
+}
+
+.brand p,
+.topbar-subtitle,
+.status-panel strong,
+.system-chip,
+.pill,
+.nav-tab,
+label,
+legend,
+.metric-card span,
+.metric-card small,
+.market-grid span,
+.scenario-item span,
+.scenario-item small,
+.agent-message strong,
+.advisor-item strong,
+.ticker-idea span,
+.strategy-chip,
+.strategy-detail-grid strong,
+.strategy-output strong {
+  font-weight: 620;
+}
+
+.eyebrow,
+.sidebar .eyebrow,
+.status-panel .eyebrow,
+.chat-panel .eyebrow,
+.panel.chat-panel .eyebrow {
+  font-size: 0.68rem;
+  font-weight: 680;
+}
+
+.topbar h2 {
+  font-size: clamp(1.35rem, 1.9vw, 1.86rem);
+  font-weight: 680;
+  line-height: 1.06;
+}
+
+.chat-panel h3,
+.panel.chat-panel h3 {
+  max-width: 560px;
+  font-size: clamp(1.32rem, 1.95vw, 1.9rem);
+  font-weight: 680;
+  line-height: 1.08;
+}
+
+.panel h3 {
+  font-size: 1.02rem;
+  font-weight: 660;
+}
+
+.portfolio-hero h3,
+.strategy-hero h3 {
+  font-size: clamp(1.35rem, 2.1vw, 2.05rem);
+  font-weight: 680;
+}
+
+.decision-panel h3 {
+  font-size: 1.05rem;
+  font-weight: 660;
+}
+
+.metric-card strong,
+.market-grid strong,
+.scenario-item strong,
+.research-dossier strong,
+.ticker-idea strong {
+  font-size: 0.98rem;
+  font-weight: 650;
+}
+
+.decision-score {
+  font-size: 1.05rem;
+  font-weight: 720;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button,
+.ghost-button {
+  font-weight: 640;
+}
+
+.agent-message p,
+.advisor-item span,
+.ticker-idea small,
+.strategy-detail-grid p,
+.strategy-how,
+.strategy-output span,
+.strategy-playbook span,
+.strategy-step span,
+.ai-brief-card ul {
+  font-weight: 450;
+}
+
+@media (max-width: 760px) {
+  .topbar h2 {
+    font-size: clamp(1.28rem, 6vw, 1.75rem);
+  }
+
+  .chat-panel h3,
+  .panel.chat-panel h3 {
+    font-size: clamp(1.32rem, 7vw, 1.9rem);
+  }
+}
+
+/* Apple-style typography pass: SF Pro first, lighter weights, quieter scale. */
+:root {
+  --font-sans:
+    "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display:
+    "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+    "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono:
+    "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-sans);
+}
+
+body {
+  font-weight: 400;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.topbar h2,
+.chat-panel h3,
+.panel.chat-panel h3,
+.portfolio-hero h3,
+.strategy-hero h3,
+.brand h1,
+.panel h3,
+.decision-panel h3 {
+  font-family: var(--font-display);
+  letter-spacing: 0;
+}
+
+.topbar h2 {
+  font-size: clamp(1.22rem, 1.68vw, 1.62rem);
+  font-weight: 560;
+  line-height: 1.12;
+}
+
+.chat-panel h3,
+.panel.chat-panel h3 {
+  max-width: 540px;
+  font-size: clamp(1.22rem, 1.72vw, 1.68rem);
+  font-weight: 560;
+  line-height: 1.12;
+}
+
+.portfolio-hero h3,
+.strategy-hero h3 {
+  font-size: clamp(1.26rem, 1.9vw, 1.82rem);
+  font-weight: 560;
+  line-height: 1.12;
+}
+
+.panel h3,
+.decision-panel h3 {
+  font-size: 0.98rem;
+  font-weight: 560;
+  line-height: 1.24;
+}
+
+.brand h1 {
+  font-size: 1rem;
+  font-weight: 590;
+}
+
+.brand p,
+.topbar-subtitle,
+.panel p:not(.eyebrow),
+.agent-message p,
+.strategy-summary,
+.advisor-item span,
+.ticker-idea small,
+.strategy-detail-grid p,
+.strategy-how,
+.strategy-output span,
+.strategy-playbook span,
+.strategy-step span {
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.nav-tab,
+.system-chip,
+.pill,
+.primary-button,
+.secondary-button,
+.danger-button,
+.ghost-button,
+label,
+legend {
+  font-weight: 520;
+}
+
+.eyebrow,
+.sidebar .eyebrow,
+.status-panel .eyebrow,
+.chat-panel .eyebrow,
+.panel.chat-panel .eyebrow {
+  font-size: 0.66rem;
+  font-weight: 560;
+}
+
+.metric-card strong,
+.market-grid strong,
+.scenario-item strong,
+.research-dossier strong,
+.ticker-idea strong {
+  font-weight: 560;
+}
+
+.decision-score {
+  font-weight: 590;
+}
+
+@media (max-width: 760px) {
+  .topbar h2 {
+    font-size: clamp(1.18rem, 5.4vw, 1.52rem);
+  }
+
+  .chat-panel h3,
+  .panel.chat-panel h3 {
+    font-size: clamp(1.18rem, 6vw, 1.6rem);
+  }
+}
+
+/* Premium startup typography: Geist UI with IBM Plex Mono for market data. */
+:root {
+  --font-sans:
+    "Geist", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont,
+    "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display:
+    "Geist", "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont,
+    "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono:
+    "IBM Plex Mono", "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace;
+}
+
+.topbar h2,
+.chat-panel h3,
+.panel.chat-panel h3,
+.portfolio-hero h3,
+.strategy-hero h3 {
+  font-weight: 500;
+}
+
+.panel h3,
+.decision-panel h3,
+.brand h1 {
+  font-weight: 520;
+}
+
+.metric-card strong,
+.market-grid strong,
+.scenario-item strong,
+.research-dossier strong,
+.ticker-idea strong,
+.decision-score,
+.status-panel strong,
+.risk-meter,
+.recommendation strong,
+.journal-action {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+/* Button contrast fix: light buttons need dark text. */
+.secondary-button {
+  border-color: rgba(216, 251, 255, 0.72);
+  background: linear-gradient(180deg, #f8fdff, #d8fbff);
+  color: #03101b;
+  box-shadow:
+    0 14px 30px rgba(101, 223, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.secondary-button:hover {
+  border-color: rgba(248, 253, 255, 0.92);
+  background: linear-gradient(180deg, #ffffff, #e6fcff);
+  color: #03101b;
+}
+
+.secondary-button:disabled {
+  color: rgba(3, 16, 27, 0.58);
+}
+
+.primary-button {
+  color: #ffffff;
+}
+
+.danger-button {
+  color: #ffb4c4;
+}
+
+.ghost-button {
+  color: var(--ink-soft);
+}
+
+/* High-contrast controls inside the neon chat surface. */
+.chat-panel .pill,
+.chat-panel .secondary-button,
+.chat-panel .ghost-button,
+.quick-prompts .ghost-button {
+  border-color: rgba(248, 253, 255, 0.62);
+  background: linear-gradient(180deg, rgba(248, 253, 255, 0.96), rgba(213, 235, 246, 0.94));
+  color: #06111e;
+  text-shadow: none;
+}
+
+.chat-panel .pill {
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.quick-prompts .ghost-button:hover,
+.chat-panel .ghost-button:hover {
+  background: linear-gradient(180deg, #ffffff, #e7f5fc);
+  color: #06111e;
+}
+
+.agent-form textarea {
+  border-color: rgba(248, 253, 255, 0.72);
+  background: #f8fdff;
+  color: #06111e;
+  caret-color: #087cff;
+}
+
+.agent-form textarea::placeholder {
+  color: #657f94;
+  opacity: 1;
+}
+
+.agent-form textarea:focus {
+  border-color: rgba(101, 223, 255, 0.9);
+  background: #ffffff;
+  color: #06111e;
 }
