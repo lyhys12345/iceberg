@@ -74,11 +74,14 @@ const geminiBrief = await generateGeminiRiskBrief(
 
 assert.equal(geminiBrief.source, "gemini");
 assert.equal(called.length, 1);
-assert.equal(called[0].url, "https://generativelanguage.googleapis.com/v1beta/interactions");
+assert.equal(
+  called[0].url,
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+);
 assert.equal(called[0].options.headers["x-goog-api-key"], "test-key");
 const body = JSON.parse(called[0].options.body);
-assert.equal(body.model, "gemini-3.6-flash");
-assert.match(body.input, /Return JSON only/);
+assert.match(body.contents[0].parts[0].text, /Return JSON only/);
+assert.equal(body.generationConfig.responseMimeType, "application/json");
 
 if (oldKey) {
   process.env.GEMINI_API_KEY = oldKey;

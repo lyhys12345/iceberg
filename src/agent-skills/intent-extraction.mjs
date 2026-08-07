@@ -1,4 +1,5 @@
 import { beginnerIntro, classifyBeginnerIntent } from "../conversation-agent.mjs";
+import { callGeminiGenerateContent, geminiModel, parseJsonFromText, readGeminiText } from "../gemini-client.mjs";
 
 export async function runIntentExtractionSkill(message, defaults = {}, fetchImpl = fetch) {
   if (process.env.GEMINI_API_KEY) {
@@ -12,9 +13,8 @@ export async function runIntentExtractionSkill(message, defaults = {}, fetchImpl
 
   return localInterpretation(message, "");
 }
-
 async function interpretWithGemini(message, defaults, fetchImpl) {
-  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  const model = geminiModel();
   const prompt = [
     "You are the intent and field extraction layer for Iceberg, an AI pre-trade risk system.",
     "Classify the user message. Extract only facts the user explicitly provided.",
@@ -24,20 +24,14 @@ async function interpretWithGemini(message, defaults, fetchImpl) {
     JSON.stringify({ message, knownDefaults: defaults }),
   ].join("\n\n");
 
-  const response = await fetchImpl("https://generativelanguage.googleapis.com/v1beta/interactions", {
-    method: "POST",
-    headers: {
-      "x-goog-api-key": process.env.GEMINI_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const data = await callGeminiGenerateContent(
+    {
       model,
-      input: `${prompt}\n\nReturn JSON only with keys: intent, reply, fields. intent must be one of greeting, identity, help, quote, trade.`,
-    }),
-  });
-
-  if (!response.ok) throw new Error(`Gemini extraction failed with ${response.status}.`);
-  const data = await response.json();
+      prompt: `${prompt}\n\nReturn JSON only with keys: intent, reply, fields. intent must be one of greeting, identity, help, quote, trade.`,
+      generationConfig: { responseMimeType: "application/json" },
+    },
+    fetchImpl,
+  );
   const parsed = parseJsonFromText(readGeminiText(data));
   return {
     intent: normalizeIntent(parsed.intent),
@@ -111,36 +105,4 @@ function normalizeExtractedFields(fields) {
     else normalized[canonical] = value;
   });
   return normalized;
-}
-
-function readGeminiText(data) {
-  const text =
-    data.output_text ||
-    data.output?.text ||
-    data.steps
-      ?.flatMap((step) => step.content || [])
-      ?.map((content) => content.text)
-      ?.filter(Boolean)
-      ?.join("") ||
-    data.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text)
-      ?.filter(Boolean)
-      ?.join("");
-
-  if (!text) throw new Error("Gemini response did not include text.");
-  return text;
-}
-
-function parseJsonFromText(text) {
-  const trimmed = String(text || "").trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced?.[1] || trimmed;
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-
-  if (start < 0 || end < start) {
-    throw new Error("Gemini response did not include JSON.");
-  }
-
-  return JSON.parse(candidate.slice(start, end + 1));
 }

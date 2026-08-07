@@ -1,11 +1,12 @@
 import { createAiRiskBrief } from "./ai-risk-layer.mjs";
+import { callGeminiGenerateContent, geminiModel, parseJsonFromText, readGeminiText } from "./gemini-client.mjs";
 
 export async function generateGeminiRiskBrief(report, fetchImpl = fetch) {
   if (!process.env.GEMINI_API_KEY) {
     return withSource(createAiRiskBrief(report), "local");
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+  const model = geminiModel();
   const prompt = [
     "You are Iceberg, a beginner-friendly pre-trade risk agent.",
     "Analyze risk, sizing, downside, protection, and the supplied strategy recommendation in plain English.",
@@ -13,60 +14,20 @@ export async function generateGeminiRiskBrief(report, fetchImpl = fetch) {
     "Keep advice conservative and based only on the supplied report. Use the supplied strategy unless the report clearly says no safe size.",
     JSON.stringify(summarizeReportForAi(report)),
   ].join("\n\n");
-  const response = await fetchImpl("https://generativelanguage.googleapis.com/v1beta/interactions", {
-    method: "POST",
-    headers: {
-      "x-goog-api-key": process.env.GEMINI_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
+  const data = await callGeminiGenerateContent(
+    {
       model,
-      input: `${prompt}\n\nReturn JSON only with keys: pattern, confidence, missingItems, signals, strategyName, strategySteps, summary, reflectionPrompt.`,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Gemini request failed with ${response.status}.`);
-  }
-
-  const data = await response.json();
+      prompt: `${prompt}\n\nReturn JSON only with keys: pattern, confidence, missingItems, signals, strategyName, strategySteps, summary, reflectionPrompt.`,
+      generationConfig: { responseMimeType: "application/json" },
+    },
+    fetchImpl,
+  );
   const parsed = parseGeminiJson(data);
   return withSource(validateBrief(parsed), "gemini");
 }
 
 export function parseGeminiJson(data) {
-  const outputText =
-    data.output_text ||
-    data.output?.text ||
-    data.steps
-      ?.flatMap((step) => step.content || [])
-      ?.map((content) => content.text)
-      ?.filter(Boolean)
-      ?.join("") ||
-    data.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text)
-      ?.filter(Boolean)
-      ?.join("");
-
-  if (!outputText) {
-    throw new Error("Gemini response did not include structured text.");
-  }
-
-  return parseJsonFromText(outputText);
-}
-
-function parseJsonFromText(text) {
-  const trimmed = String(text || "").trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced?.[1] || trimmed;
-  const start = candidate.indexOf("{");
-  const end = candidate.lastIndexOf("}");
-
-  if (start < 0 || end < start) {
-    throw new Error("Gemini response did not include JSON.");
-  }
-
-  return JSON.parse(candidate.slice(start, end + 1));
+  return parseJsonFromText(readGeminiText(data));
 }
 
 function summarizeReportForAi(report) {

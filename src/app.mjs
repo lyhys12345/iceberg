@@ -784,7 +784,8 @@ async function hydrateAiStatus() {
     if (!response.ok) throw new Error("AI status unavailable");
     const status = await response.json();
     if (status.health && status.health.ok === false) {
-      elements.aiProviderStatus.textContent = `AI: ${status.provider} auth issue`;
+      const issueLabel = status.health.reason === "network_error" ? "network issue" : "auth issue";
+      elements.aiProviderStatus.textContent = `AI: ${status.provider} ${issueLabel}`;
       elements.aiProviderStatus.dataset.provider = "local";
       elements.aiProviderStatus.title = status.health.message || "AI provider health check failed.";
       return;

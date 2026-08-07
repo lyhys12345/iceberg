@@ -146,9 +146,12 @@ const geminiIdentity = await runIcebergAgent(
 assert.equal(geminiIdentity.trace[0].source, "gemini");
 assert.equal(geminiIdentity.message, "I am Iceberg, your pre-trade risk layer.");
 const extractionBody = JSON.parse(extractionCalls[0].options.body);
-assert.equal(extractionCalls[0].url, "https://generativelanguage.googleapis.com/v1beta/interactions");
-assert.equal(extractionBody.model, "gemini-3.6-flash");
-assert.match(extractionBody.input, /Return JSON only/);
+assert.equal(
+  extractionCalls[0].url,
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+);
+assert.match(extractionBody.contents[0].parts[0].text, /Return JSON only/);
+assert.equal(extractionBody.generationConfig.responseMimeType, "application/json");
 
 if (oldGeminiKey) process.env.GEMINI_API_KEY = oldGeminiKey;
 else delete process.env.GEMINI_API_KEY;

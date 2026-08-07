@@ -11,6 +11,7 @@ const moduleFiles = [
   "ai-risk-layer.mjs",
   "advisor-engine.mjs",
   "conversation-agent.mjs",
+  "gemini-client.mjs",
   "gemini-risk-agent.mjs",
   "iceberg-agent.mjs",
   "market-data.mjs",

@@ -1,4 +1,5 @@
 import { generateAiRiskBrief, pickProvider } from "./src/ai-provider.mjs";
+import { callGeminiGenerateContent, explainGeminiNetworkError, geminiModel } from "./src/gemini-client.mjs";
 import { runIcebergAgent } from "./src/iceberg-agent.mjs";
 import { fetchMarketSnapshot } from "./src/market-data.mjs";
 import { staticAssets } from "./server/static-assets.mjs";
@@ -38,7 +39,7 @@ export default {
           provider: pickProvider(process.env),
           hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
           hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY),
-          geminiModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+          geminiModel: geminiModel(process.env),
           health: check ? await checkAiHealth() : null,
         });
       }
@@ -99,33 +100,24 @@ async function checkAiHealth() {
   if (provider !== "gemini") return { ok: provider !== "local", provider };
 
   try {
-    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-      method: "POST",
-      headers: {
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const model = geminiModel(process.env);
+    await callGeminiGenerateContent(
+      {
         model,
-        input: "Return JSON only: {\"ok\": true}",
-      }),
-    });
-
-    if (!response.ok) {
-      const detail = await response.json().catch(() => ({}));
-      return {
-        ok: false,
-        provider,
-        status: response.status,
-        reason: detail?.error?.status || "request_failed",
-        message: detail?.error?.message || `Gemini health check failed with ${response.status}.`,
-      };
-    }
-
-    return { ok: true, provider };
+        prompt: 'Return JSON only: {"ok": true}',
+        generationConfig: { responseMimeType: "application/json" },
+      },
+      fetch,
+    );
+    return { ok: true, provider, model };
   } catch (error) {
-    return { ok: false, provider, reason: "network_error", message: String(error?.message || error) };
+    const diagnosis = explainGeminiNetworkError(error);
+    return {
+      ok: false,
+      provider,
+      status: error?.status || 0,
+      ...diagnosis,
+    };
   }
 }
 
