@@ -3746,3 +3746,367 @@ legend {
     grid-template-columns: 1fr;
   }
 }
+
+/* Light Ice skin: white workspace with blue structure. */
+:root {
+  color-scheme: light;
+  --ink: #071827;
+  --ink-soft: #254563;
+  --muted: #6b7f95;
+  --muted-strong: #45627e;
+  --line: rgba(18, 116, 214, 0.16);
+  --line-strong: rgba(18, 116, 214, 0.28);
+  --paper: #f5f9fe;
+  --panel: rgba(255, 255, 255, 0.88);
+  --blue: #0878ff;
+  --blue-deep: #075dcc;
+  --blue-soft: #eaf5ff;
+  --navy: #eff7ff;
+  --navy-soft: #dbeeff;
+  --ice: #f3fbff;
+  --ice-strong: #1d9be8;
+  --green: #15855f;
+  --amber: #b36b0d;
+  --red: #bd3344;
+  --neon-lime: #2c8f68;
+  --neon-magenta: #b43a8b;
+  --desk-bg: #f5f9fe;
+  --desk-panel: rgba(255, 255, 255, 0.9);
+  --desk-line: rgba(18, 116, 214, 0.16);
+  --desk-blue: #0878ff;
+  --desk-ink: #071827;
+  --shadow: 0 24px 70px rgba(35, 84, 130, 0.12);
+  --shadow-soft: 0 14px 34px rgba(35, 84, 130, 0.09);
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 44%, #eef7ff 100%);
+  background-size: auto;
+  color: var(--ink);
+}
+
+body::before {
+  display: block;
+  background:
+    linear-gradient(115deg, rgba(8, 120, 255, 0.08), transparent 32%),
+    linear-gradient(245deg, rgba(108, 200, 255, 0.13), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), transparent 66%);
+}
+
+.sidebar {
+  border-right: 1px solid rgba(18, 116, 214, 0.14);
+  border-bottom-color: rgba(18, 116, 214, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 247, 255, 0.94)),
+    #ffffff;
+  color: var(--ink);
+  box-shadow:
+    8px 0 34px rgba(35, 84, 130, 0.07),
+    inset -1px 0 0 rgba(255, 255, 255, 0.76);
+}
+
+.brand-mark {
+  border-color: rgba(8, 120, 255, 0.22);
+  background:
+    linear-gradient(180deg, #ffffff 0 40%, #dff3ff 41% 100%);
+  box-shadow:
+    0 10px 24px rgba(8, 120, 255, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.brand-mark::after {
+  background: rgba(8, 120, 255, 0.16);
+  box-shadow: none;
+}
+
+.brand h1,
+.topbar h2,
+.panel h3,
+.status-panel strong,
+.chat-panel h3,
+.panel.chat-panel h3,
+.order-review h4,
+.workflow-step strong,
+.order-ticket-metric strong {
+  color: var(--ink);
+  text-shadow: none;
+}
+
+.brand p,
+.topbar-subtitle,
+.panel p:not(.eyebrow),
+.strategy-summary,
+.agent-message p,
+.agent-message.assistant p,
+.advisor-item span,
+.ticker-idea small,
+.strategy-detail-grid p,
+.strategy-how,
+.strategy-output span,
+.strategy-playbook span,
+.strategy-step span,
+.ai-brief-card ul {
+  color: var(--muted-strong);
+}
+
+.eyebrow,
+.sidebar .eyebrow,
+.status-panel .eyebrow,
+.chat-panel .eyebrow,
+.panel.chat-panel .eyebrow {
+  color: var(--blue-deep);
+  text-shadow: none;
+}
+
+.nav-tabs {
+  border-color: rgba(18, 116, 214, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(18, 116, 214, 0.05);
+}
+
+.nav-tab {
+  color: var(--muted-strong);
+}
+
+.nav-tab.active,
+.nav-tab:hover {
+  border-color: rgba(8, 120, 255, 0.22);
+  background: linear-gradient(180deg, #ffffff, #eaf5ff);
+  color: var(--blue-deep);
+  box-shadow:
+    0 10px 24px rgba(8, 120, 255, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.82);
+}
+
+.status-panel div,
+.panel,
+.topbar-actions .system-chip,
+.system-chip,
+.pill,
+.market-status,
+.research-output,
+.advisor-item,
+.ticker-idea,
+.market-grid div,
+.scenario-item,
+.strategy-card,
+.strategy-detail-grid div,
+.strategy-output,
+.strategy-step,
+.metric-card,
+.decision-panel,
+.journal-action,
+.choice-group,
+.cooldown,
+.recommendation,
+.ai-brief-card {
+  border-color: rgba(18, 116, 214, 0.13);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink-soft);
+  box-shadow:
+    0 14px 34px rgba(35, 84, 130, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+}
+
+.chat-panel {
+  border-color: rgba(8, 120, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(242, 249, 255, 0.94)),
+    #ffffff;
+  color: var(--ink);
+  box-shadow:
+    0 30px 80px rgba(35, 84, 130, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.86);
+}
+
+.chat-panel::before {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0 34%, rgba(209, 238, 255, 0.84) 35% 65%, rgba(72, 171, 255, 0.28) 66% 100%);
+  filter: none;
+  opacity: 0.2;
+}
+
+.chat-panel::after,
+.metric-card::before,
+.strategy-card::before {
+  background: linear-gradient(90deg, var(--blue), #6cc8ff, transparent 82%);
+  box-shadow: none;
+}
+
+.agent-message.assistant {
+  border-color: rgba(18, 116, 214, 0.14);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink);
+}
+
+.agent-message.user {
+  border-color: rgba(8, 120, 255, 0.3);
+  background: linear-gradient(135deg, #0878ff, #35a8ff);
+  color: #ffffff;
+  box-shadow: 0 12px 28px rgba(8, 120, 255, 0.18);
+}
+
+.agent-message.user strong,
+.agent-message.user p {
+  color: #ffffff;
+}
+
+input,
+select,
+textarea,
+.agent-form textarea {
+  border-color: rgba(18, 116, 214, 0.18);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 1px 0 rgba(18, 116, 214, 0.04);
+}
+
+input::placeholder,
+textarea::placeholder,
+.agent-form textarea::placeholder {
+  color: #7890a6;
+  opacity: 1;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.agent-form textarea:focus {
+  border-color: rgba(8, 120, 255, 0.54);
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow:
+    0 0 0 3px rgba(8, 120, 255, 0.12),
+    0 12px 26px rgba(8, 120, 255, 0.08);
+}
+
+label,
+legend,
+.system-chip,
+.pill,
+.ghost-button {
+  color: var(--ink-soft);
+}
+
+.primary-button {
+  border-color: rgba(8, 120, 255, 0.26);
+  background: linear-gradient(135deg, #0878ff, #35a8ff);
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(8, 120, 255, 0.2);
+}
+
+.secondary-button,
+.chat-panel .secondary-button,
+.chat-panel .ghost-button,
+.quick-prompts .ghost-button,
+.ghost-button {
+  border-color: rgba(8, 120, 255, 0.18);
+  background: linear-gradient(180deg, #ffffff, #edf7ff);
+  color: var(--blue-deep);
+  text-shadow: none;
+  box-shadow:
+    0 10px 22px rgba(35, 84, 130, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.secondary-button:hover,
+.quick-prompts .ghost-button:hover,
+.chat-panel .ghost-button:hover,
+.ghost-button:hover {
+  background: linear-gradient(180deg, #ffffff, #e2f2ff);
+  color: var(--blue-deep);
+}
+
+.danger-button {
+  border-color: rgba(189, 51, 68, 0.22);
+  background: #fff2f4;
+  color: var(--red);
+}
+
+.decision-panel,
+.decision-panel h3,
+.metric-card strong,
+.market-grid strong,
+.scenario-item strong,
+.research-dossier strong,
+.ticker-idea strong,
+.strategy-detail-grid strong,
+.strategy-output strong {
+  color: var(--ink);
+}
+
+.decision-score {
+  border-color: rgba(8, 120, 255, 0.18);
+  background: linear-gradient(180deg, #0878ff, #35a8ff);
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(8, 120, 255, 0.16);
+}
+
+.strategy-chip,
+.order-risk-list span {
+  border-color: rgba(8, 120, 255, 0.16);
+  background: #eef7ff;
+  color: var(--blue-deep);
+}
+
+.strategy-formula {
+  border-color: rgba(21, 133, 95, 0.2);
+  background: #eefaf5;
+  color: var(--green);
+}
+
+.order-review-head,
+.agent-full-analysis {
+  border-color: rgba(18, 116, 214, 0.13);
+}
+
+.order-verdict strong {
+  border-color: rgba(8, 120, 255, 0.18);
+  background: #eef7ff;
+  color: var(--blue-deep);
+}
+
+.order-ticket-metric,
+.portfolio-impact-metrics .order-ticket-metric,
+.workflow-step {
+  border-color: rgba(18, 116, 214, 0.13);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.order-ticket-metric span,
+.order-ticket-metric small,
+.workflow-step span {
+  color: var(--muted);
+}
+
+.portfolio-impact-card {
+  border-color: rgba(8, 120, 255, 0.16);
+  background: linear-gradient(135deg, rgba(234, 245, 255, 0.86), rgba(255, 255, 255, 0.92));
+}
+
+.workflow-step b {
+  background: linear-gradient(135deg, #0878ff, #6cc8ff);
+  color: #ffffff;
+}
+
+.agent-full-analysis summary,
+.recommendation strong {
+  color: var(--blue-deep);
+}
+
+@media (max-width: 760px) {
+  body {
+    background-size: auto;
+  }
+
+  .sidebar {
+    box-shadow: 0 8px 24px rgba(35, 84, 130, 0.08);
+  }
+}
