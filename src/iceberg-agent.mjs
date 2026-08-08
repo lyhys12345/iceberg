@@ -8,6 +8,7 @@ import {
   runIntentExtractionSkill,
   runMarketResearchSkill,
   runMarketResolverSkill,
+  runPortfolioImpactAnalysisSkill,
   runPortfolioContextSkill,
   runRiskSizingSkill,
   runStrategySelectionSkill,
@@ -132,14 +133,22 @@ export async function runIcebergAgent(input, options = {}) {
     timingBias: marketResearch.timingBias,
   });
 
-  const riskSizing = runRiskSizingSkill(trade, market);
+  const portfolioImpact = runPortfolioImpactAnalysisSkill({ trade, portfolio, market });
+  trace.push({
+    step: "portfolio_impact_analysis",
+    scoreDelta: portfolioImpact.riskAdjustment.scoreDelta,
+    sizeMultiplier: portfolioImpact.riskAdjustment.sizeMultiplier,
+    flags: portfolioImpact.flags.map((flag) => flag.title),
+  });
+
+  const riskSizing = runRiskSizingSkill(trade, market, portfolioImpact);
   const report = riskSizing.report;
   trace.push({ step: "risk_sizing", symbol: trade.symbol, marketSource: market.source, summary: riskSizing.summary });
 
   const friction = runBehavioralFrictionSkill(trade, report);
   trace.push({ step: "behavioral_friction", level: friction.level, impulseLanguage: friction.impulseLanguage, oversized: friction.oversized });
 
-  const strategySelection = runStrategySelectionSkill({ trade, marketResearch, riskSizing, friction, report });
+  const strategySelection = runStrategySelectionSkill({ trade, marketResearch, portfolioImpact, riskSizing, friction, report });
   trace.push({
     step: "strategy_selection",
     strategy: strategySelection.strategyName,
@@ -158,17 +167,19 @@ export async function runIcebergAgent(input, options = {}) {
   const finalResponse = runFinalResponseSkill({
     trade,
     marketResearch,
+    portfolioImpact,
     riskSizing,
     friction,
     strategySelection,
     aiBrief,
-    workflowSteps: buildWorkflowSteps({ interpretation, marketResearch, riskSizing, strategySelection, aiBrief }),
+    workflowSteps: buildWorkflowSteps({ interpretation, marketResearch, portfolioImpact, riskSizing, strategySelection, aiBrief }),
   });
   trace.push({ step: "final_response", type: "trade_plan", sections: Object.keys(finalResponse.sections) });
 
   return agentReply("plan", `${marketNote}${finalResponse.message}`, {
     trade,
     market,
+    portfolioImpact,
     report,
     friction,
     protectionStrategy: strategySelection,
@@ -176,8 +187,9 @@ export async function runIcebergAgent(input, options = {}) {
     aiBrief,
     workflow: {
       intent: interpretation.intent,
-      steps: buildWorkflowSteps({ interpretation, marketResearch, riskSizing, strategySelection, aiBrief }),
+      steps: buildWorkflowSteps({ interpretation, marketResearch, portfolioImpact, riskSizing, strategySelection, aiBrief }),
       marketResearch,
+      portfolioImpact,
       riskSizing: withoutReport(riskSizing),
       strategySelection,
       finalResponse,
@@ -390,7 +402,7 @@ function withoutReport(riskSizing) {
   return summary;
 }
 
-function buildWorkflowSteps({ interpretation, marketResearch, riskSizing, strategySelection, aiBrief }) {
+function buildWorkflowSteps({ interpretation, marketResearch, portfolioImpact, riskSizing, strategySelection, aiBrief }) {
   return [
     {
       id: "intent_extraction",
@@ -405,6 +417,13 @@ function buildWorkflowSteps({ interpretation, marketResearch, riskSizing, strate
       status: "complete",
       output: marketResearch.timingBias,
       detail: marketResearch.summary,
+    },
+    {
+      id: "portfolio_impact_analysis",
+      label: "Portfolio impact",
+      status: "complete",
+      output: portfolioImpact?.riskAdjustment?.recommendationBias || "neutral",
+      detail: portfolioImpact?.beginnerSummary || "No saved portfolio was available.",
     },
     {
       id: "risk_sizing",

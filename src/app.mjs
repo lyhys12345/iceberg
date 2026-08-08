@@ -860,6 +860,7 @@ function renderOrderReview(result) {
   const action = strategy.action || "review";
   const actionClass = orderActionClass(action, decision.kind);
   const primaryRisks = result.report?.flags?.slice(0, 3) || [];
+  const portfolioImpact = result.portfolioImpact || result.workflow?.portfolioImpact || result.report?.portfolioImpact;
 
   return `
     <section class="order-review" data-action="${actionClass}" aria-label="Order review">
@@ -881,6 +882,8 @@ function renderOrderReview(result) {
         ${ticketMetric("Strategy", strategy.strategyName, `${Math.round(Number(strategy.confidence || 0) * 100)}% confidence`)}
       </div>
 
+      ${renderPortfolioImpactCard(portfolioImpact)}
+
       <div class="workflow-steps" aria-label="Agent workflow">
         ${result.workflow.steps.map((step, index) => renderWorkflowStep(step, index)).join("")}
       </div>
@@ -891,6 +894,27 @@ function renderOrderReview(result) {
           : ""
       }
     </section>
+  `;
+}
+
+function renderPortfolioImpactCard(portfolioImpact) {
+  if (!portfolioImpact || portfolioImpact.source === "neutral") return "";
+
+  const before = portfolioImpact.before || {};
+  const after = portfolioImpact.after || {};
+  const mainConcern = portfolioImpact.flags?.[0]?.title || "No major issue";
+  return `
+    <div class="portfolio-impact-card" aria-label="Portfolio impact">
+      <div>
+        <span class="eyebrow">Portfolio Impact</span>
+        <p>${escapeHtml(portfolioImpact.beginnerSummary || "Iceberg checked how this order changes your account.")}</p>
+      </div>
+      <div class="portfolio-impact-metrics">
+        ${ticketMetric("Position after", formatPercent(after.symbolWeight), `was ${formatPercent(before.symbolWeight)}`)}
+        ${ticketMetric("Cash after", formatPercent(after.cashWeight), `was ${formatPercent(before.cashWeight)}`)}
+        ${ticketMetric("Main concern", mainConcern, portfolioImpact.riskAdjustment?.recommendationBias || "neutral")}
+      </div>
+    </div>
   `;
 }
 

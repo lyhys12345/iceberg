@@ -47,6 +47,8 @@ See [docs/ai-trade-advisor-spec.md](docs/ai-trade-advisor-spec.md) for the AI pr
 
 See [docs/mvp-qualification.md](docs/mvp-qualification.md) for the current MVP qualification checklist.
 
+See [docs/portfolio-impact-execution-plan.md](docs/portfolio-impact-execution-plan.md) for the portfolio-aware trade recommendation execution plan.
+
 ## Prototype
 
 The first MVP is a chat-first web app that runs in the browser:

@@ -1,5 +1,5 @@
 export function runFinalResponseSkill(context) {
-  const { marketResearch, riskSizing, friction, strategySelection, aiBrief, workflowSteps = [] } = context;
+  const { marketResearch, portfolioImpact, riskSizing, friction, strategySelection, aiBrief, workflowSteps = [] } = context;
   const report = riskSizing.report;
   const topFlags = report.flags.slice(0, 3);
   const strategySteps = strategySelection.strategySteps.slice(0, 3);
@@ -9,9 +9,10 @@ export function runFinalResponseSkill(context) {
     `Short answer: ${shortAnswer}`,
     `Step 1 - Intent extraction: I read this as a ${report.trade.side} trade plan for ${report.trade.symbol}, not just a quote request.`,
     `Step 2 - Market research: ${marketResearch.summary} Timing bias: ${marketResearch.timingBias}.`,
-    `Step 3 - Risk sizing: cap the modeled trade around ${formatCurrency(report.sizing.suggestedDollars)} (${report.sizing.suggestedShares} shares). A stop near ${formatCurrency(report.scenarios.stop.price)} would put about ${formatCurrency(Math.abs(report.scenarios.stop.pnl))} at risk, and future exposure would be ${(report.sizing.futurePositionPercent * 100).toFixed(1)}% of the account.`,
-    `Step 4 - Strategy selection: use ${strategySelection.strategyName}. ${strategySelection.beginnerSummary} ${strategySteps.join(" ")}`,
-    `Step 5 - Final response: ${topFlags.map((flag) => `${flag.title}: ${flag.detail}`).join(" ")}`,
+    `Step 3 - Portfolio impact: ${portfolioImpactSummary(portfolioImpact)}`,
+    `Step 4 - Risk sizing: cap the modeled trade around ${formatCurrency(report.sizing.suggestedDollars)} (${report.sizing.suggestedShares} shares). A stop near ${formatCurrency(report.scenarios.stop.price)} would put about ${formatCurrency(Math.abs(report.scenarios.stop.pnl))} at risk, and future exposure would be ${(report.sizing.futurePositionPercent * 100).toFixed(1)}% of the account.`,
+    `Step 5 - Strategy selection: use ${strategySelection.strategyName}. ${strategySelection.beginnerSummary} ${strategySteps.join(" ")}`,
+    `Step 6 - Final response: ${topFlags.map((flag) => `${flag.title}: ${flag.detail}`).join(" ")}`,
     `Friction: ${friction.instruction}`,
     `Before order entry: ${reflectionPrompt}`,
   ].join("\n\n");
@@ -21,6 +22,7 @@ export function runFinalResponseSkill(context) {
     sections: {
       verdict: report.decision,
       marketRead: marketResearch,
+      portfolioImpact,
       riskSizing: riskSizing.sizing,
       primaryRisks: topFlags,
       strategy: strategySelection,
@@ -29,6 +31,18 @@ export function runFinalResponseSkill(context) {
       reflectionPrompt,
     },
   };
+}
+
+function portfolioImpactSummary(portfolioImpact) {
+  if (!portfolioImpact || portfolioImpact.source === "neutral") {
+    return "No saved portfolio was available, so this trade was reviewed as a standalone order.";
+  }
+
+  const before = portfolioImpact.before || {};
+  const after = portfolioImpact.after || {};
+  const concern = portfolioImpact.flags?.[0]?.title;
+  const concernText = concern ? ` Main concern: ${concern}.` : " No major portfolio-level issue was detected.";
+  return `${portfolioImpact.symbol} would move from ${formatPercent(before.symbolWeight)} to ${formatPercent(after.symbolWeight)} of the account, and cash would move from ${formatPercent(before.cashWeight)} to ${formatPercent(after.cashWeight)}.${concernText}`;
 }
 
 export function runIncompleteTradeResponseSkill(context) {
@@ -75,4 +89,8 @@ function formatCurrency(value) {
     currency: "USD",
     maximumFractionDigits: 2,
   });
+}
+
+function formatPercent(value) {
+  return `${(Number(value || 0) * 100).toFixed(1)}%`;
 }

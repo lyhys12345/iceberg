@@ -5,6 +5,7 @@ export { runIntentExtractionSkill } from "./intent-extraction.mjs";
 export { runMarketResearchSkill } from "./market-research.mjs";
 export { finalMarketSnapshotSkill, runMarketResolverSkill } from "./market-resolver.mjs";
 export { portfolioPriceForSymbol, runPortfolioContextSkill } from "./portfolio-context.mjs";
+export { runPortfolioImpactAnalysisSkill } from "./portfolio-impact-analysis.mjs";
 export { runPreTradeRiskCheckSkill } from "./pre-trade-risk-check.mjs";
 export { runRiskSizingSkill } from "./risk-sizing.mjs";
 export { runStrategySelectionSkill } from "./strategy-selection.mjs";
@@ -26,6 +27,10 @@ export const icebergAgentSkillCatalog = [
   {
     id: "market_research",
     purpose: "Convert market data into timing bias, volatility, drawdown, and chase-risk signals.",
+  },
+  {
+    id: "portfolio_impact_analysis",
+    purpose: "Compare the user's portfolio before and after the proposed trade and produce concentration, cash, and theme-risk adjustments.",
   },
   {
     id: "pre_trade_risk_check",

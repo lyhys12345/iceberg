@@ -11,6 +11,7 @@ assert.deepEqual(
     "portfolio_context",
     "market_resolver",
     "market_research",
+    "portfolio_impact_analysis",
     "pre_trade_risk_check",
     "risk_sizing",
     "behavioral_friction",

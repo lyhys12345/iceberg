@@ -1,16 +1,18 @@
-export function runStrategySelectionSkill({ trade, marketResearch, riskSizing, friction, report }) {
+export function runStrategySelectionSkill({ trade, marketResearch, portfolioImpact = null, riskSizing, friction, report }) {
   const baseStrategy = report?.strategy || {};
   const decision = riskSizing?.decision || report?.decision || { kind: "consider" };
   const sizing = riskSizing?.sizing || report?.sizing || {};
   const stop = riskSizing?.stop || {};
   const signals = marketResearch?.signals || [];
-  const hardStop = friction?.level === "hard_stop" || decision.kind === "avoid" || Number(sizing.suggestedShares || 0) <= 0;
+  const portfolioHardStop = hasHighPortfolioImpact(portfolioImpact) && portfolioImpact?.riskAdjustment?.recommendationBias === "wait";
+  const portfolioReduce = hasPortfolioImpact(portfolioImpact) && portfolioImpact?.riskAdjustment?.recommendationBias !== "neutral";
+  const hardStop = friction?.level === "hard_stop" || decision.kind === "avoid" || Number(sizing.suggestedShares || 0) <= 0 || portfolioHardStop;
   const slowDown = marketResearch?.timingBias === "slow down" || marketResearch?.timingBias === "wait for a cleaner entry";
   const concentrated = Number(sizing.futurePositionPercent || 0) >= 0.18 || Number(trade?.currentShares || 0) > 0;
-  const selected = selectStrategy({ baseStrategy, hardStop, slowDown, concentrated, riskScore: riskSizing?.riskScore || 0 });
+  const selected = selectStrategy({ baseStrategy, hardStop, slowDown, concentrated: concentrated || portfolioReduce, riskScore: riskSizing?.riskScore || 0 });
   const firstEntryShares = firstEntrySize(selected.id, sizing.suggestedShares);
   const action = actionForSelection({ hardStop, selected, decision });
-  const rationale = buildRationale({ selected, marketResearch, riskSizing, friction, signals, concentrated, slowDown });
+  const rationale = buildRationale({ selected, marketResearch, portfolioImpact, riskSizing, friction, signals, concentrated: concentrated || portfolioReduce, slowDown });
 
   return {
     strategyName: selected.name,
@@ -34,6 +36,7 @@ export function runStrategySelectionSkill({ trade, marketResearch, riskSizing, f
       modelStrategy: baseStrategy.primaryName || "",
       decision: decision.kind,
       timingBias: marketResearch?.timingBias || "",
+      portfolioBias: portfolioImpact?.riskAdjustment?.recommendationBias || "neutral",
       frictionLevel: friction?.level || "normal",
     },
   };
@@ -132,7 +135,7 @@ function confidenceForSelection({ hardStop, slowDown, riskScore, friction }) {
   return Math.max(0.45, Math.min(0.86, confidence));
 }
 
-function buildRationale({ selected, marketResearch, riskSizing, friction, signals, concentrated, slowDown }) {
+function buildRationale({ selected, marketResearch, portfolioImpact, riskSizing, friction, signals, concentrated, slowDown }) {
   const rationale = [
     `Strategy selected: ${selected.name}.`,
     `Timing bias is ${marketResearch?.timingBias || "unknown"}.`,
@@ -141,6 +144,8 @@ function buildRationale({ selected, marketResearch, riskSizing, friction, signal
 
   if (slowDown) rationale.push("The market read says to slow down before taking full exposure.");
   if (concentrated) rationale.push("The portfolio would become more concentrated after this order.");
+  if (portfolioImpact?.beginnerSummary) rationale.push(portfolioImpact.beginnerSummary);
+  portfolioImpact?.flags?.slice(0, 2).forEach((flag) => rationale.push(`${flag.title}: ${flag.detail}`));
   if (friction?.level === "hard_stop") rationale.push("Behavioral friction triggered a hard stop.");
   signals.slice(0, 2).forEach((signal) => rationale.push(`${signal.title}: ${signal.detail}`));
   return rationale;
@@ -172,4 +177,12 @@ function formatCurrency(value) {
     currency: "USD",
     maximumFractionDigits: 2,
   });
+}
+
+function hasPortfolioImpact(portfolioImpact) {
+  return Boolean(portfolioImpact?.flags?.length || Number(portfolioImpact?.riskAdjustment?.scoreDelta || 0) > 0);
+}
+
+function hasHighPortfolioImpact(portfolioImpact) {
+  return Boolean(portfolioImpact?.flags?.some((flag) => flag.severity === "high"));
 }
