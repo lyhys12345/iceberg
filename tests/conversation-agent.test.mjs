@@ -44,6 +44,9 @@ const withBudget = parseBeginnerTradeMessage("I want to buy NVDA with $1000. Cur
 assert.equal(withBudget.plannedBudget, "1000");
 assert.equal(withBudget.currentPrice, "120");
 
+const compactBudget = parseBeginnerTradeMessage("I want to buy 15k");
+assert.equal(compactBudget.plannedBudget, "15000");
+
 const longHorizon = parseBeginnerTradeMessage("I want to buy NVDA for 5 years. Current price is $120.", {
   accountValue: "25000",
 });

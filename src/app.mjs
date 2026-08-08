@@ -26,6 +26,12 @@ const state = {
   latestReport: null,
   latestAdvisorReport: null,
   marketSnapshot: null,
+  agentMemory: {
+    lastSymbol: "",
+    lastMarket: null,
+    lastTrade: null,
+    pendingTrade: null,
+  },
   cooldownId: null,
   cooldownEndsAt: 0,
 };
@@ -476,6 +482,7 @@ async function callIcebergAgent(message) {
       message,
       defaults: readTrustedAdvisorDefaults(),
       portfolio: readPortfolioForm(),
+      context: readAgentContext(),
     }),
   });
 
@@ -488,6 +495,7 @@ async function callIcebergAgent(message) {
 
 function renderAgentResult(result) {
   replaceLastAssistantMessage(result.message || "I could not complete the agent check.", result);
+  updateAgentMemory(result);
 
   if (result.trade) {
     fillAdvisorForm(result.trade);
@@ -504,6 +512,118 @@ function renderAgentResult(result) {
   }
 }
 
+function readAgentContext() {
+  return {
+    lastSymbol: state.agentMemory.lastSymbol || "",
+    lastMarket: state.agentMemory.lastMarket,
+    lastTrade: state.agentMemory.lastTrade,
+    pendingTrade: state.agentMemory.pendingTrade,
+  };
+}
+
+function updateAgentMemory(result = {}) {
+  const trade = compactTrade(result.trade || result.report?.trade);
+  const market = compactMarket(result.market);
+
+  if (market) {
+    state.agentMemory.lastMarket = market;
+    state.agentMemory.lastSymbol = market.symbol;
+  }
+
+  if (trade) {
+    state.agentMemory.lastTrade = trade;
+    if (trade.symbol) state.agentMemory.lastSymbol = trade.symbol;
+  }
+
+  const missingStep = result.trace?.find((step) => step.step === "missing_fields");
+  const missing = Array.isArray(missingStep?.missing) ? missingStep.missing : [];
+  if (result.type === "question" || missing.length > 0) {
+    state.agentMemory.pendingTrade = trade || state.agentMemory.pendingTrade;
+  } else if (result.type === "plan") {
+    state.agentMemory.pendingTrade = null;
+  }
+
+  if (state.agentMemory.lastMarket && state.agentMemory.lastSymbol && state.agentMemory.lastMarket.symbol !== state.agentMemory.lastSymbol) {
+    state.agentMemory.lastMarket = null;
+  }
+}
+
+function compactTrade(trade = null) {
+  if (!trade) return null;
+  const compact = {};
+  [
+    "symbol",
+    "side",
+    "horizon",
+    "currentPrice",
+    "accountValue",
+    "cashAvailable",
+    "currentShares",
+    "plannedBudget",
+    "maxRiskPercent",
+    "winProbability",
+    "upsidePercent",
+    "downsidePercent",
+    "stopLossPercent",
+    "targetGainPercent",
+    "kellyFractionPercent",
+  ].forEach((key) => {
+    const value = trade[key];
+    if (value === "" || value === null || value === undefined) return;
+    compact[key] = String(value);
+  });
+  if (compact.symbol) compact.symbol = compact.symbol.toUpperCase();
+  return Object.keys(compact).length > 0 ? compact : null;
+}
+
+function compactMarket(market = null) {
+  if (!market?.symbol || !positiveValue(market.latestClose)) return null;
+  return {
+    symbol: String(market.symbol).toUpperCase(),
+    latestClose: Number(market.latestClose),
+    asOf: market.asOf || "",
+    source: market.source || "",
+    return5d: Number(market.return5d || 0),
+    return20d: Number(market.return20d || 0),
+    return60d: Number(market.return60d || 0),
+    annualizedVolatility: Number(market.annualizedVolatility || 0),
+    maxDrawdown60d: Number(market.maxDrawdown60d || 0),
+    trend: market.trend || "mixed",
+  };
+}
+
+function applyAgentMemoryContext(parsed, message = "") {
+  const explicit = parseBeginnerTradeMessage(message, {});
+  const memory = state.agentMemory;
+  const memoryTrade = pickMemoryTrade(parsed.symbol || explicit.symbol);
+
+  if (!parsed.symbol && !explicit.symbol && (memoryTrade?.symbol || memory.lastSymbol)) {
+    parsed.symbol = memoryTrade?.symbol || memory.lastSymbol;
+  }
+
+  if (!positiveValue(parsed.currentPrice)) {
+    if (memory.lastMarket?.symbol && (!parsed.symbol || memory.lastMarket.symbol === parsed.symbol)) {
+      parsed.currentPrice = String(memory.lastMarket.latestClose);
+    } else if (positiveValue(memoryTrade?.currentPrice)) {
+      parsed.currentPrice = String(memoryTrade.currentPrice);
+    }
+  }
+
+  if (!positiveValue(parsed.plannedBudget) && !positiveValue(explicit.plannedBudget) && positiveValue(memoryTrade?.plannedBudget)) {
+    parsed.plannedBudget = String(memoryTrade.plannedBudget);
+  }
+}
+
+function pickMemoryTrade(symbol = "") {
+  const normalizedSymbol = String(symbol || "").toUpperCase();
+  const candidates = [state.agentMemory.pendingTrade, state.agentMemory.lastTrade].filter(Boolean);
+  return (
+    candidates.find((trade) => normalizedSymbol && String(trade.symbol || "").toUpperCase() === normalizedSymbol) ||
+    candidates.find((trade) => positiveValue(trade.plannedBudget)) ||
+    null
+  );
+}
+
 async function runLocalBeginnerAgent(text) {
   const intent = classifyBeginnerIntent(text);
   if (intent === "quote") {
@@ -517,6 +637,7 @@ async function runLocalBeginnerAgent(text) {
   }
 
   const parsed = parseBeginnerTradeMessage(text, readTrustedAdvisorDefaults());
+  applyAgentMemoryContext(parsed, text);
   applyPortfolioContext(parsed, text);
   let marketSearchNote = "";
 
@@ -549,21 +670,26 @@ async function runLocalBeginnerAgent(text) {
     if (shouldGiveLocalTimingRead(text, parsed, missing)) {
       const market = state.marketSnapshot || manualMarketSnapshot(parsed.symbol, parsed.currentPrice);
       replaceLastAssistantMessage(`${marketSearchNote}${timingReadReply(market)}`);
+      updateAgentMemory({ type: "research", trade: parsed, market });
       return;
     }
 
     replaceLastAssistantMessage(`${marketSearchNote}${beginnerQuestion(missing, { marketSearchFailed: searchFailed, symbol: parsed.symbol })}`);
+    updateAgentMemory({ type: "question", trade: parsed, market: state.marketSnapshot });
     return;
   }
 
   const report = generateAdvisorPlan();
   replaceLastAssistantMessage(`${beginnerAdvice(report)} I filled the advanced model below so you can inspect the assumptions.`);
+  updateAgentMemory({ type: "plan", trade: parsed, market: state.marketSnapshot, report });
 }
 
 async function answerLocalQuote(text) {
   const parsed = parseBeginnerTradeMessage(text, readTrustedAdvisorDefaults());
+  applyAgentMemoryContext(parsed, text);
   if (!parsed.symbol) {
     replaceLastAssistantMessage("Which stock ticker do you want me to check?");
+    updateAgentMemory({ type: "question", trade: parsed });
     return;
   }
 
@@ -572,6 +698,7 @@ async function answerLocalQuote(text) {
     state.marketSnapshot = snapshot;
     renderMarketSnapshot(snapshot);
     replaceLastAssistantMessage(quoteReply(snapshot));
+    updateAgentMemory({ type: "quote", trade: parsed, market: snapshot });
   } catch (error) {
     const portfolioPrice = portfolioPriceForSymbol(parsed.symbol);
     if (portfolioPrice) {
@@ -579,10 +706,12 @@ async function answerLocalQuote(text) {
       state.marketSnapshot = fallback;
       renderMarketSnapshot(fallback);
       replaceLastAssistantMessage(`I could not reach live market data, so I used your saved ${parsed.symbol} portfolio price: ${formatCurrency(portfolioPrice)}. If you want a trade plan, tell me how much you are considering buying and your account size.`);
+      updateAgentMemory({ type: "quote", trade: parsed, market: fallback });
       return;
     }
 
     replaceLastAssistantMessage(`${marketSearchFailureMessage(parsed.symbol, error)} If you paste the latest price, I can use it for a risk check.`);
+    updateAgentMemory({ type: "question", trade: parsed });
   }
 }
 

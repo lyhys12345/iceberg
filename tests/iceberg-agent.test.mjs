@@ -77,6 +77,63 @@ assert.equal(quote.market.latestClose, 120);
 assert.match(quote.message, /NVDA latest available price is \$120/);
 assert.doesNotMatch(quote.message, /how much you plan to buy before/);
 
+const contextualAmountFollowup = await runIcebergAgent(
+  {
+    message: "I want to buy 15k",
+    portfolio: demoPortfolio,
+    context: {
+      lastSymbol: "MSFT",
+      lastMarket: {
+        symbol: "MSFT",
+        latestClose: 499.99,
+        asOf: "2026-08-07",
+        source: "Yahoo Finance chart search",
+        return20d: 0.02,
+        annualizedVolatility: 0.28,
+        maxDrawdown60d: -0.06,
+        trend: "uptrend",
+      },
+    },
+  },
+  {
+    async fetchImpl() {
+      throw new Error("context should provide price");
+    },
+  },
+);
+
+assert.equal(contextualAmountFollowup.type, "plan");
+assert.equal(contextualAmountFollowup.trade.symbol, "MSFT");
+assert.equal(contextualAmountFollowup.trade.plannedBudget, "15000");
+assert.equal(contextualAmountFollowup.trade.currentPrice, "499.99");
+assert.ok(contextualAmountFollowup.trace.some((step) => step.step === "conversation_context" && step.applied.includes("symbol") && step.applied.includes("currentPrice")));
+assert.doesNotMatch(contextualAmountFollowup.message, /which stock ticker/);
+assert.doesNotMatch(contextualAmountFollowup.message, /current stock price/);
+
+const contextualTickerFollowup = await runIcebergAgent(
+  {
+    message: "MSFT",
+    context: {
+      pendingTrade: {
+        plannedBudget: "15000",
+        accountValue: "25000",
+        cashAvailable: "20000",
+        currentPrice: "499.99",
+      },
+    },
+  },
+  {
+    async fetchImpl() {
+      throw new Error("context should provide price");
+    },
+  },
+);
+
+assert.equal(contextualTickerFollowup.type, "plan");
+assert.equal(contextualTickerFollowup.trade.symbol, "MSFT");
+assert.equal(contextualTickerFollowup.trade.plannedBudget, "15000");
+assert.doesNotMatch(contextualTickerFollowup.message, /how much you plan to buy/);
+
 const plan = await runIcebergAgent(
   {
     message: "I want to buy NVDA with $1000. Current price is $120.",

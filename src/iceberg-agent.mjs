@@ -17,6 +17,7 @@ export async function runIcebergAgent(input, options = {}) {
   const fetchImpl = options.fetchImpl || fetch;
   const message = String(input?.message || "").trim();
   const defaults = input?.defaults || {};
+  const conversationContext = normalizeConversationContext(input?.context || input?.conversationContext || {});
   const portfolio = input?.portfolio || null;
   const trace = [];
 
@@ -33,8 +34,14 @@ export async function runIcebergAgent(input, options = {}) {
     fields: summarizeFields(interpretation.fields),
   });
 
-  if (interpretation.intent === "quote") {
-    const quoteTrade = mergeTradeFields(parseBeginnerTradeMessage(message, defaults), interpretation.fields);
+  const trade = mergeTradeFields(parseBeginnerTradeMessage(message, defaults), interpretation.fields);
+  const conversationContextResult = applyConversationContext(trade, conversationContext, message);
+  trace.push({ step: "conversation_context", applied: conversationContextResult.applied });
+
+  const effectiveIntent = resolveEffectiveIntent(interpretation.intent, trade, message, conversationContextResult);
+
+  if (effectiveIntent === "quote") {
+    const quoteTrade = trade;
     if (!quoteTrade.symbol) {
       return agentReply("question", "Which stock ticker do you want me to check?", { trade: quoteTrade, trace, intent: "quote" });
     }
@@ -58,11 +65,10 @@ export async function runIcebergAgent(input, options = {}) {
     });
   }
 
-  if (interpretation.intent !== "trade") {
+  if (effectiveIntent !== "trade") {
     return agentReply("intro", interpretation.reply || beginnerIntro(interpretation.intent), { trace, intent: interpretation.intent });
   }
 
-  const trade = mergeTradeFields(parseBeginnerTradeMessage(message, defaults), interpretation.fields);
   const portfolioContext = runPortfolioContextSkill(trade, portfolio, message);
   trace.push({ step: "portfolio_context", applied: portfolioContext.applied });
 
@@ -192,6 +198,133 @@ function mergeTradeFields(base, fields) {
   return merged;
 }
 
+function normalizeConversationContext(context) {
+  const lastTrade = normalizeTradeContext(context.lastTrade || context.trade || {});
+  const pendingTrade = normalizeTradeContext(context.pendingTrade || {});
+  const lastMarket = normalizeMarketContext(context.lastMarket || context.market || {});
+  const lastSymbol = normalizeSymbol(context.lastSymbol || lastMarket.symbol || lastTrade.symbol || pendingTrade.symbol);
+
+  return {
+    lastSymbol,
+    lastMarket,
+    lastTrade,
+    pendingTrade,
+  };
+}
+
+function normalizeTradeContext(trade) {
+  const normalized = {};
+  [
+    "symbol",
+    "side",
+    "accountValue",
+    "cashAvailable",
+    "currentShares",
+    "plannedBudget",
+    "currentPrice",
+    "horizon",
+    "maxRiskPercent",
+    "winProbability",
+    "upsidePercent",
+    "downsidePercent",
+    "stopLossPercent",
+    "targetGainPercent",
+    "kellyFractionPercent",
+  ].forEach((key) => {
+    const value = trade?.[key];
+    if (value === "" || value === null || value === undefined) return;
+    normalized[key] = key === "symbol" ? normalizeSymbol(value) : String(value);
+  });
+  return normalized;
+}
+
+function normalizeMarketContext(market) {
+  const symbol = normalizeSymbol(market?.symbol);
+  const latestClose = Number(market?.latestClose || market?.currentPrice || 0);
+  if (!symbol || !Number.isFinite(latestClose) || latestClose <= 0) return {};
+  return {
+    ...market,
+    symbol,
+    latestClose,
+  };
+}
+
+function normalizeSymbol(value) {
+  const symbol = String(value || "").trim().toUpperCase();
+  return /^[A-Z]{1,6}$/.test(symbol) ? symbol : "";
+}
+
+function applyConversationContext(trade, context, message) {
+  const applied = [];
+  const explicit = parseBeginnerTradeMessage(message, {});
+  const contextTrade = pickContextTrade(context, explicit.symbol || trade.symbol);
+
+  if (!trade.symbol && !explicit.symbol) {
+    const symbol = contextTrade.symbol || context.lastSymbol;
+    if (symbol) {
+      trade.symbol = symbol;
+      applied.push("symbol");
+    }
+  }
+
+  const matchingMarket = marketForSymbol(context, trade.symbol || contextTrade.symbol || context.lastSymbol);
+  if (!positive(trade.currentPrice) && matchingMarket?.latestClose) {
+    trade.currentPrice = String(matchingMarket.latestClose);
+    applied.push("currentPrice");
+  } else if (!positive(trade.currentPrice) && positive(contextTrade.currentPrice)) {
+    trade.currentPrice = String(contextTrade.currentPrice);
+    applied.push("currentPrice");
+  }
+
+  if (!positive(trade.plannedBudget) && !positive(explicit.plannedBudget) && positive(contextTrade.plannedBudget)) {
+    trade.plannedBudget = String(contextTrade.plannedBudget);
+    applied.push("plannedBudget");
+  }
+
+  if (!positive(trade.accountValue) && !positive(explicit.accountValue) && positive(contextTrade.accountValue)) {
+    trade.accountValue = String(contextTrade.accountValue);
+    applied.push("accountValue");
+  }
+
+  if (!positive(trade.cashAvailable) && !positive(explicit.cashAvailable) && positive(contextTrade.cashAvailable)) {
+    trade.cashAvailable = String(contextTrade.cashAvailable);
+    applied.push("cashAvailable");
+  }
+
+  if (!positive(trade.currentShares) && !positive(explicit.currentShares) && positive(contextTrade.currentShares)) {
+    trade.currentShares = String(contextTrade.currentShares);
+    applied.push("currentShares");
+  }
+
+  return { applied };
+}
+
+function pickContextTrade(context, symbol = "") {
+  const candidates = [context.pendingTrade, context.lastTrade].filter(Boolean);
+  const normalizedSymbol = normalizeSymbol(symbol);
+  return (
+    candidates.find((trade) => normalizedSymbol && normalizeSymbol(trade.symbol) === normalizedSymbol) ||
+    candidates.find((trade) => normalizeSymbol(trade.symbol) === context.lastSymbol) ||
+    candidates.find((trade) => positive(trade.plannedBudget) || positive(trade.accountValue)) ||
+    {}
+  );
+}
+
+function marketForSymbol(context, symbol = "") {
+  const normalizedSymbol = normalizeSymbol(symbol);
+  if (context.lastMarket?.symbol && (!normalizedSymbol || context.lastMarket.symbol === normalizedSymbol)) {
+    return context.lastMarket;
+  }
+  return null;
+}
+
+function resolveEffectiveIntent(intent, trade, message, conversationContextResult) {
+  if (intent !== "quote") return intent;
+  if (asksExplicitQuote(message)) return "quote";
+  if (trade.symbol && positive(trade.plannedBudget) && conversationContextResult.applied.length > 0) return "trade";
+  return intent;
+}
+
 function summarizeFields(fields = {}) {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== "" && value !== null && value !== undefined));
 }
@@ -227,6 +360,14 @@ function asksTimingQuestion(message) {
   return (
     /\b(good time|right time|should i buy|should i enter|buy now|worth buying|is this.*buy|is now.*buy)\b/.test(text) ||
     /\u597d\u65f6\u673a|\u597d\u6642\u6a5f|\u73b0\u5728.*\u4e70|\u73fe\u5728.*\u8cb7|\u8be5\u4e70|\u8a72\u8cb7|\u9002\u5408\u4e70|\u503c\u5f97\u4e70/.test(text)
+  );
+}
+
+function asksExplicitQuote(message) {
+  const text = String(message || "").toLowerCase();
+  return (
+    /\b(price|quote|stock price|latest price|how much is|what is .* trading at)\b/.test(text) ||
+    /\u80a1\u4ef7|\u4ef7\u683c|\u591a\u5c11\u94b1|\u62a5\u4ef7|\u5831\u50f9/.test(text)
   );
 }
 
